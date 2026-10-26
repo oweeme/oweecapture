@@ -76,3 +76,7 @@ Una aplicación hecha con Qt funciona en GNOME, y una hecha con GTK funciona en 
 | Aspecto | Qt nativo | GTK nativo | con el otro toolkit se ve algo ajeno (tema, diálogos de archivo); se mitiga con Flatpak y estilos |
 | Dependencias | Qt ya instalado | GTK ya instalado | Flatpak incluye lo que falte |
 Conclusión: **una sola aplicación y un solo toolkit** es viable. Los límites reales están en las superposiciones de GNOME, no en la elección Qt o GTK.
+
+
+## Decisión final (26 de octubre)
+El autor usa KDE: **Python con Qt6 (PySide6, LGPLv3)**. El proyecto es GPL-3.0-or-later, compatible con la licencia libre de Qt, y no hace falta licencia comercial. Detalle y riesgos del paso de GTK4 a Qt en el hito M0.6 de `PLAN.md`; el riesgo principal son las superposiciones sin marco en Wayland, que en KDE necesitan `LayerShellQt`.

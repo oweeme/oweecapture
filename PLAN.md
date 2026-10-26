@@ -1,7 +1,7 @@
 # Plan de Screencapture
 
 Documento de planificación. Fecha: 26 de octubre de 2026. Autor del proyecto: Hector Martinez. Licencia prevista: GPL-3.0-or-later.
-Las decisiones de lenguaje y biblioteca gráfica están razonadas en [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md). **Decisión vigente (26 oct): seguir en Python**, con el núcleo aislado y backends intercambiables (wlroots, portal+PipeWire, X11 y Windows vía FFmpeg); Rust se decide con mediciones; Qt o GTK4 se decide antes de crecer la interfaz. Las estimaciones de tiempo son orientativas (una persona, tiempo parcial) y se revisan al terminar cada hito.
+Las decisiones de lenguaje y biblioteca gráfica están razonadas en [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md). **Decisión vigente (26 oct): Python con Qt6 (PySide6)** — el autor usa KDE y Qt encaja con KDE y Deepin y se empaqueta bien en Windows; GNOME lo ejecuta sin problema, con el núcleo aislado y backends intercambiables (wlroots, portal+PipeWire, X11 y Windows vía FFmpeg); Rust se decide con mediciones; Qt o GTK4 se decide antes de crecer la interfaz. Las estimaciones de tiempo son orientativas (una persona, tiempo parcial) y se revisan al terminar cada hito.
 
 ## 1. Visión
 Una grabadora y capturadora de pantalla para Linux que **cualquiera pueda usar sin restricciones**, que **no cuelgue el equipo**, que **ocupe poco** y que **genere vídeos pequeños** listos para compartir. Pensada para quien enseña, hace tutoriales, sube a YouTube o TikTok, o manda vídeos por WhatsApp y Telegram.
@@ -67,6 +67,14 @@ Cada hito termina con algo que se puede probar y con criterios de aceptación me
 Proyecto aparte, sin dependencias de OweeLinux, 19 idiomas, pruebas básicas. **Criterio:** `python3 -m unittest discover -s tests` pasa.
 **M0.5 — Comparación:** probar Spectacle, Kooha, OBS, SimpleScreenRecorder y Flameshot en la misma máquina y anotar qué hace mejor cada uno (tamaño de archivo, CPU, facilidad). Define la ventaja real. *(1 semana)*
 
+### M0.6 — Pasar la interfaz de GTK4 a Qt6 / PySide6 (2–3 semanas)
+Qué se reutiliza y qué se rehace del código extraído:
+- **Se reutiliza tal cual:** `core.py` (captura, grabación, calidades, recuperación), `i18n.py` y los catálogos. Solo hay que quitar el uso de GLib para las carpetas (`QStandardPaths`) y de `Gio` para D-Bus (`QtDBus`).
+- **Se rehace:** `app.py` (ventana principal y barra de control), `editor.py` (dibujo con `QPainter`/`QGraphicsScene`), `overlay.py` (dibujar sobre la pantalla) y `camera.py` (burbuja; `QtMultimedia` o `PipeWire`).
+- **Punto de riesgo nº 1 — superposiciones en KDE Wayland:** una ventana sin marco que se quede siempre encima **no se puede pedir con `WindowStaysOnTopHint` en Wayland**. En KDE se hace con `layer-shell` (`LayerShellQt`), que es una biblioteca de C++ y **PySide6 no la expone**. Opciones a probar en un prototipo de 2 días: (a) `ctypes` sobre `libLayerShellQtInterface`; (b) una extensión mínima en C++; (c) reglas de KWin para esas ventanas. **Hasta que no se pruebe, no se sabe cuál funciona.**
+- **Punto de riesgo nº 2 — captura en Wayland:** comparar `QScreenCapture` de Qt Multimedia (si usa el portal y PipeWire en la versión de Qt instalada) con GStreamer desde PyGObject. Las dos se pueden combinar con Qt porque Qt usa el bucle de eventos de GLib en Linux.
+- **Criterio de aceptación:** las funciones de hoy (captura con editor, grabación, cámara, presentación) funcionan en KDE Plasma Wayland con Qt, con las mismas 9 pruebas y una prueba manual de cada función.
+
 ### M1 — Fiabilidad (2–3 semanas)
 - Grabación en **segmentos** y recuperación automática al abrir.
 - **Pausa y reanudar.** Aviso cuando queda poco disco o memoria; parada ordenada antes de que el sistema mate el proceso.
@@ -119,7 +127,7 @@ Pasar el núcleo a un *crate* `screencapture-core` (`gstreamer-rs`, `pipewire-rs
 | Riesgo | Mitigación |
 |---|---|
 | El portal pide confirmación en cada grabación | usar el *restore token* del portal para recordar la elección |
-| Sin `layer-shell` en GNOME/KDE no hay burbuja ni dibujo flotante | hito M2: alternativa por escritorio; documentar límites |
+| Superposiciones: con Qt en KDE hace falta `LayerShellQt` (C++) y en GNOME no hay `layer-shell` | hito M0.6: prototipo de 2 días; hito M2: alternativa por escritorio; documentar límites |
 | Sincronía de audio y vídeo | GStreamer con una sola línea de tiempo; pruebas con claqueta |
 | Patentes de H.264/AAC | ofrecer VP9/Opus y AV1 libres; H.264 por defecto por compatibilidad |
 | Controladores de GPU (NVIDIA, AMD antiguos) | vuelta automática a x264 por CPU |
@@ -148,6 +156,6 @@ Convenciones: commits claros y sin atribuciones de herramientas ni coautores; te
 ## 11. Decisiones que dependen de ti
 1. ¿Prioridad: poder usarla en GNOME/KDE (M2) o pulir primero lo que ya funciona en wlroots (M1 y M3)?
 2. ¿Directos y avatar entran en la 1.0 o después?
-3. ¿Interfaz con libadwaita (estilo GNOME) o con tema propio (como en OweeLinux)?
+3. ~~¿libadwaita o tema propio?~~ **Resuelto: Qt6/PySide6** (estilo de KDE).
 4. ¿Qué equipos reales son tu referencia (HP A12 y Dell con NVIDIA)?
 5. ¿Publicar ya el repositorio o esperar a M1?
