@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "screencapture"
+version = "0.1.0"
+description = "Screenshots with an annotation editor, screen recording with audio and webcam, and a presentation drawing mode (Wayland)"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11"
+authors = [{ name = "Hector Martinez" }]
+# PyGObject y GTK4 vienen del sistema (python3-gi, gir1.2-gtk-4.0, gir1.2-gtk4layershell-1.0), no de pip
+dependencies = []
+
+[project.scripts]
+screencapture = "screencapture.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

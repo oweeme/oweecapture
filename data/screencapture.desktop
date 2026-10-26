@@ -1,0 +1,23 @@
+[Desktop Entry]
+Type=Application
+Name=Screencapture
+GenericName=Screen capture and recording
+Comment=Screenshots with an annotation editor, screen recording with audio and webcam, and a presentation drawing mode
+Exec=screencapture
+Icon=screencapture
+Terminal=false
+Categories=AudioVideo;Recorder;Utility;
+Keywords=screenshot;screen;record;capture;video;
+Actions=Shot;Region;Record;
+
+[Desktop Action Shot]
+Name=Take a screenshot
+Exec=screencapture --shot full
+
+[Desktop Action Region]
+Name=Screenshot of a region
+Exec=screencapture --shot region
+
+[Desktop Action Record]
+Name=Start or stop recording
+Exec=screencapture --record full
