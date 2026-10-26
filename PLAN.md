@@ -1,7 +1,7 @@
 # Plan de Screencapture
 
 Documento de planificación. Fecha: 26 de octubre de 2026. Autor del proyecto: Hector Martinez. Licencia prevista: GPL-3.0-or-later.
-Las decisiones de lenguaje y biblioteca gráfica están razonadas en [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md). Las estimaciones de tiempo son orientativas (una persona, tiempo parcial) y se revisan al terminar cada hito.
+Las decisiones de lenguaje y biblioteca gráfica están razonadas en [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md). **Decisión vigente (26 oct): seguir en Python**, con el núcleo aislado y backends intercambiables (wlroots, portal+PipeWire, X11 y Windows vía FFmpeg); Rust se decide con mediciones; Qt o GTK4 se decide antes de crecer la interfaz. Las estimaciones de tiempo son orientativas (una persona, tiempo parcial) y se revisan al terminar cada hito.
 
 ## 1. Visión
 Una grabadora y capturadora de pantalla para Linux que **cualquiera pueda usar sin restricciones**, que **no cuelgue el equipo**, que **ocupe poco** y que **genere vídeos pequeños** listos para compartir. Pensada para quien enseña, hace tutoriales, sube a YouTube o TikTok, o manda vídeos por WhatsApp y Telegram.
@@ -73,8 +73,8 @@ Proyecto aparte, sin dependencias de OweeLinux, 19 idiomas, pruebas básicas. **
 - Pruebas de integración con un compositor sin pantalla (`WLR_BACKENDS=headless` con labwc o sway) y una prueba automática de «matar el programa a mitad» 100 veces: **0 grabaciones perdidas**.
 - Tabla de medidas propias: CPU, memoria y MB por minuto en cada calidad (1080p y 720p) en el HP de 16 GB y en una VM.
 
-### M2 — Funcionar en cualquier escritorio Wayland (4–6 semanas)
-- Backend **portal ScreenCast + PipeWire + GStreamer**; conservar `wlr-screencopy` como vía rápida en wlroots.
+### M2 — Funcionar en GNOME, KDE, Deepin (X11 y Wayland) (4–6 semanas)
+- Backend **X11 con FFmpeg** (rápido de hacer; cubre X11 en general y Deepin si usa X11) y backend **portal ScreenCast + PipeWire + GStreamer** (GNOME y KDE en Wayland); conservar `wlr-screencopy` como vía rápida en wlroots.
 - Las superposiciones (burbuja, dibujo) sin `layer-shell` en GNOME y KDE: ventana siempre visible con la API disponible, o integración con la extensión del escritorio; documentar lo que no sea posible.
 - Selección de zona sin `slurp`. **Criterio:** graba en GNOME, KDE Plasma, sway y labwc; una grabación de 30 min sin pérdidas.
 - Es el hito con **más incertidumbre**: validar primero con un prototipo de 2 días en GNOME y KDE.
@@ -90,10 +90,13 @@ Capturas: recortar, desenfocar, texto con fondo, copiar texto de la imagen (OCR 
 ### M5 — Directos y avatar (6+ semanas, a decidir)
 Salida RTMP/SRT a YouTube y TikTok con escena (pantalla + cámara + avatar). **Decisión pendiente:** es el terreno de OBS; solo merece la pena si M0.5 muestra un hueco claro (por ejemplo, directos ligeros en equipos modestos).
 
+### M5b — Windows (opcional, después de M3)
+Backend FFmpeg (`ddagrab`/`gdigrab`), interfaz probablemente con Qt (PySide6) y empaquetado con instalador. Solo si hay demanda real.
+
 ### M6 — Publicación (3 semanas)
 Paquetes **Flatpak (Flathub)**, `.deb` y AppImage; página web y documentación; CI en GitHub Actions (pruebas y empaquetado); versión 1.0.
 
-### M7 — Núcleo en Rust (opcional, 8–12 semanas)
+### M7 — Núcleo en Rust (solo si las mediciones lo piden; 8–12 semanas)
 Pasar el núcleo a un *crate* `screencapture-core` (`gstreamer-rs`, `pipewire-rs`, `ashpd`) y, si compensa, la interfaz a `gtk4-rs` + libadwaita. Se hace **después** de M2, cuando la arquitectura ya está probada.
 
 ## 6. Cómo se prueba

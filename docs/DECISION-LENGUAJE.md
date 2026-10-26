@@ -42,3 +42,25 @@ Hoy se usa `wlr-screencopy` (vía `wf-recorder` y `grim`). **Solo funciona en co
 **Por qué no quedarse en Python para siempre:** no porque Python sea lento (no toca los fotogramas), sino por el binario único, la memoria en reposo, el arranque y las garantías de hilos en un programa que debe sobrevivir a grabaciones de horas.
 
 **Cuándo cambiaría esta recomendación:** si el tiempo disponible es muy limitado, quedarse en Python + GTK4 con backend de portal es una opción válida y entrega valor antes; si el objetivo principal fuera KDE, Qt6 (C++ o Rust con `cxx-qt`) ganaría.
+
+
+## Actualización (26 de octubre): objetivo GNOME, KDE, Deepin y, más adelante, Windows
+Con ese objetivo cambia el peso de las preguntas, y **mi recomendación cambia: quedarse en Python ahora**.
+
+**1. El lenguaje no resuelve lo difícil.** Cada plataforma necesita su propio sistema de captura, escrito en el lenguaje que sea:
+| Escritorio | Cómo se captura | Estado en el proyecto |
+|---|---|---|
+| wlroots (labwc, sway, Hyprland) | `wlr-screencopy` | hecho |
+| GNOME y KDE Plasma (Wayland) | portal `xdg-desktop-portal` (ScreenCast) + PipeWire | por hacer (hito M2) |
+| X11 (GNOME/KDE en X11 y, según la versión, Deepin) | `x11grab` de FFmpeg o `ximagesrc` de GStreamer | por hacer, es lo más fácil |
+| Windows | `ddagrab` / `gdigrab` de FFmpeg o *Windows Graphics Capture* | por hacer, más adelante |
+Deepin: hay que **comprobar** qué sesión usa la versión que se quiera soportar (según mi información, DDE 23 usa X11 por defecto y está incorporando Wayland; no lo he verificado aquí).
+FFmpeg ya sabe capturar en X11 y en Windows, así que un backend basado en FFmpeg cubre esos dos casos desde Python sin escribir código específico de cada sistema.
+
+**2. Lo que sí pesa es la biblioteca gráfica, no Python contra Rust.** GTK4 en Windows es incómodo de empaquetar; Qt (PySide6) se instala en Windows con `pip` y se ve nativo en KDE y Deepin (que usan Qt), aunque en GNOME se vea algo ajeno. Si Windows y Deepin son objetivos reales, **Qt6 con PySide6 es una opción seria**; si el objetivo principal es GNOME y las distribuciones ligeras, GTK4. Hay que decidirlo antes de crecer la interfaz.
+
+**3. Ventajas de seguir en Python (hoy):** ya funciona; se prueba y se cambia en minutos; PyGObject orquesta GStreamer y FFmpeg sin tocar los fotogramas, así que el rendimiento no lo limita Python; menos riesgo de reescribir mientras la arquitectura aún cambia.
+**4. Inconvenientes de Python (reales):** hay que empaquetar el intérprete y las bibliotecas (Flatpak y AppImage lo resuelven en Linux; en Windows es trabajoso); unos 70–80 MB en reposo con GTK4; arranque más lento; un error de hilos se descubre en ejecución, no al compilar.
+**5. Cuándo sí pasar a Rust:** cuando una **medición** lo pida (memoria en reposo, arranque, fallos de hilos en grabaciones largas), cuando se quiera un único binario para Windows/macOS, o cuando el núcleo ya sea estable. Se pasa **el núcleo primero** (un servicio con API D-Bus y una biblioteca) y la interfaz puede seguir en Python/Qt. Hacerlo antes sería reescribir algo que todavía cambia.
+
+**Decisión actual:** Python. Aislar el núcleo (sin imports de interfaz) con **backends intercambiables** (wlroots, portal+PipeWire, X11/FFmpeg, Windows/FFmpeg), medir en el hito M1, y decidir Qt o GTK4 y Rust con datos.
