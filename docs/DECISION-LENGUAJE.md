@@ -64,3 +64,15 @@ FFmpeg ya sabe capturar en X11 y en Windows, así que un backend basado en FFmpe
 **5. Cuándo sí pasar a Rust:** cuando una **medición** lo pida (memoria en reposo, arranque, fallos de hilos en grabaciones largas), cuando se quiera un único binario para Windows/macOS, o cuando el núcleo ya sea estable. Se pasa **el núcleo primero** (un servicio con API D-Bus y una biblioteca) y la interfaz puede seguir en Python/Qt. Hacerlo antes sería reescribir algo que todavía cambia.
 
 **Decisión actual:** Python. Aislar el núcleo (sin imports de interfaz) con **backends intercambiables** (wlroots, portal+PipeWire, X11/FFmpeg, Windows/FFmpeg), medir en el hito M1, y decidir Qt o GTK4 y Rust con datos.
+
+## Una sola aplicación para KDE y GNOME
+Una aplicación hecha con Qt funciona en GNOME, y una hecha con GTK funciona en KDE: el toolkit es una biblioteca, no depende del escritorio. Lo que cambia entre escritorios no es la aplicación sino unas pocas piezas del sistema, que hay que aislar en módulos intercambiables:
+| Pieza | KDE Plasma | GNOME | Qué hacer |
+|---|---|---|---|
+| Captura de pantalla (Wayland) | portal ScreenCast + PipeWire | igual | un solo backend para los dos |
+| Superposiciones (burbuja de cámara, dibujar sobre la pantalla, barra flotante) | `layer-shell` (soportado) | **no soporta `layer-shell`** | es el punto difícil: alternativa por escritorio y documentar los límites |
+| Atajos globales | portal GlobalShortcuts / KDE | portal GlobalShortcuts / configuración de GNOME | usar el portal; si no, órdenes de línea para asignarlas a mano |
+| Icono en la bandeja | StatusNotifier | necesita una extensión | no depender de él |
+| Aspecto | Qt nativo | GTK nativo | con el otro toolkit se ve algo ajeno (tema, diálogos de archivo); se mitiga con Flatpak y estilos |
+| Dependencias | Qt ya instalado | GTK ya instalado | Flatpak incluye lo que falte |
+Conclusión: **una sola aplicación y un solo toolkit** es viable. Los límites reales están en las superposiciones de GNOME, no en la elección Qt o GTK.
