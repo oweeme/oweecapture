@@ -7,7 +7,7 @@ Uso:  screencapture                      ventana principal
 import os, sys, time, subprocess
 _LS = "/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0"                                      # layer-shell antes que libwayland (necesario con Python)
 if "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", "") and os.path.exists(_LS):
-    os.environ["LD_PRELOAD"] = (_LS + " " + os.environ.get("LD_PRELOAD", "")).strip(); os.execv(sys.executable, [sys.executable] + sys.argv)
+    os.environ["LD_PRELOAD"] = (_LS + " " + os.environ.get("LD_PRELOAD", "")).strip(); os.execv(sys.executable, [sys.executable, "-m", "screencapture"] + sys.argv[1:])      # se relanza como módulo (así funcionan las importaciones del paquete)
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
