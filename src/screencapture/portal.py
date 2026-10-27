@@ -6,7 +6,7 @@ import dbus, dbus.mainloop.glib
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst
-from . import core
+from . import audio, core
 from .i18n import _
 
 TOKEN = os.path.join(os.path.dirname(core.CFG), "portal.json")          # elección de pantalla recordada (restore token del portal)
@@ -20,18 +20,18 @@ def _guardar_token(t):
 
 LOG = os.path.join(os.path.dirname(core.CACHE), "error.log")
 
-def a_mp4(mkv, mp4):
-    """MKV → MP4 sin recodificar el vídeo (el audio pasa de Opus a AAC). Si falla, se conserva el MKV: lo grabado nunca se pierde."""
-    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mkv, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", mp4], capture_output=True, text=True, timeout=600)
+def a_mp4(mkv, mp4, mezcla=None):
+    """MKV → MP4 sin recodificar el vídeo; el audio se mezcla en una pista AAC aplicando `mezcla` = (fuentes, volumen del sistema, volumen del micrófono, ruido). Si falla, se conserva el MKV: lo grabado nunca se pierde."""
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mkv, "-c:v", "copy"] + audio.argumentos(mkv, *(mezcla or ([], 1.0, 1.0, 0))) + ["-movflags", "+faststart", mp4], capture_output=True, text=True, timeout=1800)
     if r.returncode == 0 and os.path.exists(mp4): return mp4
     return shutil.copy(mkv, mp4.replace(".mp4", ".mkv"))
 
-def juntar(segmentos, mp4):
-    """Une los trozos de una grabación con pausas en un MP4 (el vídeo sin recodificar; el audio pasa de Opus a AAC). Con un solo trozo es `a_mp4`. Si algo falla, los trozos se conservan como MKV."""
+def juntar(segmentos, mp4, mezcla=None):
+    """Une los trozos de una grabación con pausas en un MP4 (el vídeo sin recodificar; el audio según `mezcla`). Con un solo trozo es `a_mp4`. Si algo falla, los trozos se conservan como MKV."""
     validos = [x for x in segmentos if os.path.exists(x) and os.path.getsize(x) > 1000]
-    if len(validos) <= 1: return a_mp4(validos[0], mp4) if validos else None
+    if len(validos) <= 1: return a_mp4(validos[0], mp4, mezcla) if validos else None
     lista = os.path.join(os.path.dirname(validos[0]), "lista.txt"); open(lista, "w").write("".join(f"file '{x}'\n" for x in validos))
-    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lista, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", mp4], capture_output=True, text=True, timeout=900)
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lista, "-c:v", "copy"] + audio.argumentos(validos[0], *(mezcla or ([], 1.0, 1.0, 0))) + ["-movflags", "+faststart", mp4], capture_output=True, text=True, timeout=1800)
     if r.returncode == 0 and os.path.exists(mp4): return mp4
     destino = mp4[:-4]; [shutil.copy(x, f"{destino}-{i + 1}.mkv") for i, x in enumerate(validos)]; return f"{destino}-1.mkv"
 
@@ -78,11 +78,11 @@ class Grabador:
         self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
         metodo(*args, opciones)
 
-    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0, efectos=None, pantalla=None):
+    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0, efectos=None, pantalla=None, mezcla=(1.0, 1.0, 0)):
         """`zona`: QRect en píxeles de la pantalla (o None para todo). El portal entrega la pantalla entera y la zona se recorta en la tubería.
-        `efectos`: (zoom, halo) para aplicar al terminar (con zoom 1 y sin halo, ninguno); `pantalla`: (x, y, ancho, alto) lógicos de la pantalla que se graba, para situar el cursor en el vídeo."""
+        `efectos`: (zoom, halo) para aplicar al terminar (con zoom 1 y sin halo, ninguno); `mezcla`: (volumen del sistema, volumen del micrófono, nivel de reducción de ruido 0-2) que se aplica al guardar; `pantalla`: (x, y, ancho, alto) lógicos de la pantalla que se graba, para situar el cursor en el vídeo."""
         if self.corriendo or self.sesion: return
-        self.calidad = calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla else None; self.pantalla = pantalla
+        self.calidad = calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla else None; self.pantalla = pantalla; self.mezcla = ([f for f, on in (('sistema', sistema), ('mic', mic)) if on],) + tuple(mezcla)
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
@@ -127,10 +127,9 @@ class Grabador:
         preset, crf, _red = core.QUALITY[self.calidad]
         self.mkv = os.path.join(self.tmp, "video.mkv" if not self.segmentos else f"video-{len(self.segmentos) + 1}.mkv")
         audio = ""
-        caps = "audioconvert ! audioresample ! audio/x-raw,rate=48000,channels=2 ! mezcla."
+        caps = "audioconvert ! audioresample ! audio/x-raw,rate=48000,channels=2 ! opusenc bitrate=128000 ! queue ! mux."          # cada fuente en su propia pista: el volumen y el ruido se ajustan al guardar
         if self.sistema: audio += f'pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true ! {caps} '
         if self.mic: audio += f"pipewiresrc do-timestamp=true ! {caps} "
-        if audio: audio += "audiomixer name=mezcla ! audioconvert ! opusenc bitrate=96000 ! queue ! mux. "
         desc = (f"matroskamux name=mux ! filesink location={self.mkv} "
                 f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000 ! queue ! videoconvert ! {self.recorte}videorate ! video/x-raw,framerate={self.fps}/1 ! "
                 f"x264enc tune=zerolatency speed-preset={preset} pass=qual quantizer={crf} key-int-max={self.fps * 2} ! video/x-h264,profile=high ! h264parse ! queue ! mux. {audio}")
@@ -167,11 +166,11 @@ class Grabador:
         self.cerrando = True
         if self.pipe is not None: self.pipe.get_bus().remove_signal_watch(); self.pipe.set_state(Gst.State.NULL); self.pipe = None
         self._cerrar_sesion(); segs, calidad, al, tmp, max_mb = list(self.segmentos), self.calidad, self.al_terminar, self.tmp, self.max_mb
-        efectos = self._cursor_grabado()
+        efectos = self._cursor_grabado(); mezcla = self.mezcla
         def trabajo():
             try:
                 if not any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in segs): al(None, _("La grabación quedó vacía.")); return
-                os.makedirs(core.DIR_VID, exist_ok=True); mp4 = juntar(segs, os.path.join(core.DIR_VID, f"grabacion-{core.stamp()}.mp4"))
+                os.makedirs(core.DIR_VID, exist_ok=True); mp4 = juntar(segs, os.path.join(core.DIR_VID, f"grabacion-{core.stamp()}.mp4"), mezcla)
                 shutil.rmtree(tmp, ignore_errors=True)
                 if efectos and mp4.endswith(".mp4"):
                     from . import efectos as fx

@@ -12,7 +12,7 @@ def dirs():
     return (os.path.join(_dir(GLib.UserDirectory.DIRECTORY_PICTURES, "Pictures"), "Screenshots"), os.path.join(_dir(GLib.UserDirectory.DIRECTORY_VIDEOS, "Videos"), "Screen Recordings"))
 DIR_IMG, DIR_VID = dirs()
 CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "screencapture", "config.json")
-DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False}
+DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False, "vol_sistema": 100, "vol_mic": 100, "ruido": 0}
 LEGACY = {"alta": "maxima", "original": "maxima", "buena": "youtube", "media": "whatsapp", "ligera": "whatsapp"}      # nombres de versiones anteriores
 
 def load_cfg():
@@ -126,7 +126,8 @@ def mux(video, wavs, out):
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", video] + sum([["-i", w] for w in wavs], [])
         cmd += (["-filter_complex", f"{''.join(f'[{i + 1}:a]' for i in range(len(wavs)))}amix=inputs={len(wavs)}:normalize=0[a]", "-map", "0:v", "-map", "[a]"] if len(wavs) > 1 else ["-map", "0:v", "-map", "1:a"])
         cmd += ["-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", out]
-    elif have("ffmpeg"): cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", video, "-c:v", "copy", out]
+    elif have("ffmpeg"):
+        from . import audio; cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", video, "-c:v", "copy"] + audio.argumentos(video, []) + ["-movflags", "+faststart", out]          # el MKV de portal.py trae el audio en pistas separadas: se mezclan sin ajustes
     else: mkv = out.replace(".mp4", ".mkv"); shutil.copy(video, mkv); return mkv
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if r.returncode != 0 or not os.path.exists(out): mkv = out.replace(".mp4", ".mkv"); shutil.copy(video, mkv); return mkv      # al menos el vídeo no se pierde

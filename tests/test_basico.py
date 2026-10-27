@@ -1,7 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from screencapture import core, efectos, i18n
+from screencapture import audio, core, efectos, i18n
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -67,5 +67,30 @@ class Efectos(unittest.TestCase):
             p = [(i / 10, 40 + i * 12, 90) for i in range(21)]
             self.assertTrue(efectos.aplicar(v, p, 2.0, True, tramos=[(0.5, 1.5)])); self.assertEqual(efectos.medidas(v)[:2], (320, 180)); self.assertEqual(os.listdir(d), ["v.mp4"])
     def test_sin_pista_o_sin_efectos_no_toca_nada(self): self.assertFalse(efectos.aplicar("/no/existe.mp4", [], 2.0, True)); self.assertFalse(efectos.aplicar("/no/existe.mp4", [(0, 1, 1), (1, 2, 2)], 1, False)); self.assertFalse(efectos.aplicar("/no/existe.mp4", [(0, 1, 1), (1, 2, 2)], 2, False))     # zoom pedido pero sin tramos ni halo
+
+class Audio(unittest.TestCase):
+    def test_sin_ajustes_con_un_solo_origen_se_copia(self): self.assertIsNone(audio.filtro(["sistema"], 1)); self.assertIsNone(audio.filtro([], 0))
+    def test_filtro_aplica_volumen_y_ruido_solo_al_microfono(self):
+        f = audio.filtro(["sistema", "mic"], 2, 0.5, 1.5, 1)
+        self.assertIn("[0:a:0]volume=0.500[a0]", f); self.assertIn("[0:a:1]" + audio.RUIDO[1] + ",volume=1.500[a1]", f); self.assertIn("amix=inputs=2:normalize=0", f); self.assertIn("alimiter", f)
+    def test_si_las_pistas_no_coinciden_se_mezclan_sin_ajustes(self):
+        f = audio.filtro(["sistema", "mic"], 3, 0.5, 2.0, 2); self.assertNotIn("volume", f); self.assertNotIn("afftdn", f); self.assertIn("amix=inputs=3", f)
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_volumen_y_reduccion_de_ruido_medidos(self):
+        import re
+        from screencapture import portal
+        def medir(f, a, b):
+            r = subprocess.run(["ffmpeg", "-i", f, "-af", f"atrim={a}:{b},volumedetect", "-f", "null", "-"], capture_output=True, text=True).stderr; return float(re.search(r"mean_volume: (-?[\d.]+)", r).group(1))
+        with tempfile.TemporaryDirectory() as d:
+            mkv = os.path.join(d, "p.mkv")      # pista 0 = sistema (tono); pista 1 = micrófono: ruido rosa realista (≈ -59 dB) y un tono de «voz» entre los segundos 2 y 4
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=160x90:r=24:d=5", "-f", "lavfi", "-i", "sine=f=440:d=5,volume=0.1", "-f", "lavfi", "-i",
+                            "anoisesrc=d=5:c=pink:a=0.006:r=48000[n];sine=f=250:d=5,volume='between(t,2,4)*0.25':eval=frame[t];[n][t]amix=inputs=2:normalize=0", "-map", "0:v", "-map", "1:a", "-map", "2:a",
+                            "-c:v", "libx264", "-c:a", "libopus", "-pix_fmt", "yuv420p", mkv], check=True)
+            def solo_mic(nombre, vol, ruido): out = os.path.join(d, nombre + ".mp4"); portal.a_mp4(mkv, out, (["sistema", "mic"], 0.0, vol, ruido)); return out
+            base = solo_mic("base", 1.0, 0); mitad = solo_mic("mitad", 0.5, 0); suave = solo_mic("suave", 1.0, 1); fuerte = solo_mic("fuerte", 1.0, 2)
+            self.assertAlmostEqual(medir(base, 2.3, 3.7) - medir(mitad, 2.3, 3.7), 6.0, delta=0.6)                                     # el 50 % baja 6 dB
+            self.assertGreater(medir(base, 0.2, 1.8) - medir(suave, 0.2, 1.8), 4)                                                       # suave: el ruido de fondo baja
+            self.assertGreater(medir(base, 0.2, 1.8) - medir(fuerte, 0.2, 1.8), 15)                                                     # fuerte: mucho más
+            for f in (suave, fuerte): self.assertLess(abs(medir(base, 2.3, 3.7) - medir(f, 2.3, 3.7)), 1.5)                             # la voz casi no cambia
 
 if __name__ == "__main__": unittest.main()
