@@ -2,7 +2,7 @@
 import os, signal, subprocess, sys
 from PySide6.QtCore import QObject, QRect, QTimer, Signal
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from . import atajos, burbuja, captura, core, kwin, portal, presentacion, selector, servicio
 from .i18n import _
@@ -48,7 +48,12 @@ class Ventana(QWidget):
         """Ctrl+Alt+Z mientras se graba: acerca (centrado en el cursor) o aleja; el efecto se aplica al terminar la grabación."""
         r = self.grab.alternar_zoom()
         if r is None: self.estado.setText(_("El zoom solo funciona grabando (sin pausa) y con un nivel de zoom elegido.")) if not self.grab.corriendo else None; return
-        self.estado.setText(_("Zoom: acercado") if r else _("Zoom: alejado")); subprocess.Popen(["notify-send", "-t", "1200", "-i", "screencapture", _("Zoom: acercado") if r else _("Zoom: alejado")], stderr=subprocess.DEVNULL) if core.have("notify-send") else None
+        texto = _("Zoom: acercado (se aplica al terminar)") if r else _("Zoom: alejado"); self.estado.setText(texto); self.avisar("Screencapture", texto); self.refrescar_bandeja()
+
+    def avisar(self, titulo, texto):
+        """Aviso del escritorio: con `notify-send` si está instalado y, si no, el globo de la bandeja (así siempre se ve algo)."""
+        if core.have("notify-send"): subprocess.Popen(["notify-send", "-i", "screencapture", titulo, texto], stderr=subprocess.DEVNULL)
+        else: self.tray.showMessage(titulo, texto, QSystemTrayIcon.Information, 2500)
 
     def con_selector(self, fondo, al_elegir):
         """Muestra el selector (sobre `fondo` congelado, o sobre el escritorio en vivo si es None) y llama a `al_elegir(zona | None)`; Esc cancela."""
@@ -73,7 +78,7 @@ class Ventana(QWidget):
         try:
             r = zona if zona else QRect(0, 0, img.width(), img.height()); f = img.devicePixelRatio() or 1; r = QRect(int(r.x() * f), int(r.y() * f), int(r.width() * f), int(r.height() * f))
             ruta = captura.guardar(img.copy(r)); self.estado.setText(_("Captura guardada y copiada: ") + ruta)
-            subprocess.Popen(["notify-send", "-i", "screencapture", _("Captura guardada"), ruta], stderr=subprocess.DEVNULL) if core.have("notify-send") else None
+            self.avisar(_("Captura guardada"), ruta)
         except Exception as e: self.estado.setText(str(e))
 
     def perfil_cambia(self):
@@ -131,7 +136,7 @@ class Ventana(QWidget):
     def refrescar_bandeja(self, tiempo=""):
         """El icono de la bandeja muestra el estado (rojo grabando, naranja en pausa) y su menú ofrece detener y pausar sin ventana."""
         g, p = self.grab.corriendo, self.grab.pausada
-        self.tray.setIcon(icono_estado("pausa" if p else "grabando") if g else icono()); self.tray.setToolTip(("Screencapture — " + (_("En pausa") if p else _("Grabando")) + " " + tiempo) if g else "Screencapture")
+        self.tray.setIcon(icono_estado("pausa" if p else "zoom" if self.grab.zoom_activo() else "grabando") if g else icono()); self.tray.setToolTip(("Screencapture — " + (_("En pausa") if p else _("Grabando con zoom") if self.grab.zoom_activo() else _("Grabando")) + " " + tiempo) if g else "Screencapture")
         self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
@@ -141,8 +146,8 @@ class Ventana(QWidget):
     def al_terminar(self, ruta, err):
         self.fin_grabacion(); self.mostrar()          # también llega aquí si la captura se cortó desde el indicador del escritorio
         if err: self.estado.setText(err); return
-        self.estado.setText(_("Guardado: ") + ruta)
-        subprocess.Popen(["notify-send", "-i", "screencapture", _("Grabación guardada"), ruta], stderr=subprocess.DEVNULL) if core.have("notify-send") else None
+        resumen = self.grab.resumen_efectos(); self.estado.setText(_("Guardado: ") + ruta + resumen)
+        self.avisar(_("Grabación guardada"), ruta + resumen)
 
     def closeEvent(self, e): e.ignore(); self.hide()            # cerrar la ventana la oculta; los atajos siguen activos y se sale desde la bandeja
     def salir(self):
@@ -160,7 +165,8 @@ def icono():
 def icono_estado(estado):
     """Círculo rojo (grabando) o naranja con barras (en pausa), dibujado a mano para no depender del tema de iconos."""
     pm = QPixmap(64, 64); pm.fill(Qt.transparent); p = QPainter(pm); p.setRenderHint(QPainter.Antialiasing); p.setPen(Qt.NoPen)
-    p.setBrush(QColor("#F4A261" if estado == "pausa" else "#E63946")); p.drawEllipse(6, 6, 52, 52)
+    p.setBrush(QColor("#F4A261" if estado == "pausa" else "#2A7FFF" if estado == "zoom" else "#E63946")); p.drawEllipse(6, 6, 52, 52)
+    if estado == "zoom": p.setBrush(Qt.NoBrush); p.setPen(QPen(Qt.white, 6)); p.drawEllipse(18, 16, 22, 22); p.drawLine(36, 36, 47, 47); p.setPen(Qt.NoPen)      # lupa: el zoom está activo
     if estado == "pausa": p.setBrush(Qt.white); p.drawRect(21, 20, 8, 24); p.drawRect(35, 20, 8, 24)
     p.end(); return QIcon(pm)
 
