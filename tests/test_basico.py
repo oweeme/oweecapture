@@ -1,7 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from screencapture import audio, clips, core, directo, efectos, i18n
+from screencapture import audio, clips, core, directo, efectos, herramientas, i18n
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -143,5 +143,41 @@ class Clips(unittest.TestCase):
             self.assertEqual(sorted(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", salida], capture_output=True, text=True).stdout.split()), ["aac", "h264"])   # audio mezclado en una pista
             self.assertTrue(core.duration(clips.recortar(mkv, 20, 120, os.path.join(d, "todo.mp4"))) >= 19)          # pedir más de lo grabado: sale todo
     def test_sin_archivo_no_hay_clip(self): self.assertIsNone(clips.recortar("/no/existe.mkv", 10, 5, "/tmp/x.mp4"))
+
+class Herramientas(unittest.TestCase):
+    def _video(self, d, audio=True):
+        """6 s de 1280×720: tono (0–1 s), silencio (1–3,5 s), tono (3,5–6 s)."""
+        ruta = os.path.join(d, "v.mp4"); cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=6"]
+        if audio: cmd += ["-f", "lavfi", "-i", "sine=f=440:d=6,volume='if(between(t,1,3.5),0,0.5)':eval=frame", "-c:a", "aac"]
+        subprocess.run(cmd + ["-c:v", "libx264", "-pix_fmt", "yuv420p", ruta], check=True); return ruta
+    def test_tramos_a_conservar_deja_margen_y_descarta_silencios_cortos(self):
+        self.assertEqual(herramientas.tramos_a_conservar([(2.0, 5.0)], 9.0), [(0.0, 2.15), (4.85, 9.0)])
+        self.assertEqual(herramientas.tramos_a_conservar([(2.0, 2.3)], 9.0), [(0.0, 9.0)])                               # silencio de 0,3 s: no se corta
+        self.assertEqual(herramientas.tramos_a_conservar([(0.0, 3.0)], 9.0), [(2.85, 9.0)])                              # silencio al principio
+        self.assertEqual(herramientas.tramos_a_conservar([(6.0, float("inf"))], 9.0), [(0.0, 6.15)])                    # silencio abierto hasta el final
+    def test_filtro_vertical_de_recorte_cabe_en_el_video(self):
+        self.assertIn("crop=404:720:438:0", herramientas.filtro_vertical(1280, 720, "recorte", 0.5)); self.assertIn("crop=404:720:0:0", herramientas.filtro_vertical(1280, 720, "recorte", 0))
+        self.assertIn("crop=404:720:876:0", herramientas.filtro_vertical(1280, 720, "recorte", 1)); self.assertIn("crop=720:1280:0:", herramientas.filtro_vertical(720, 1600, "recorte", 0.5))
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_vertical_deja_1080x1920_en_los_dos_modos_y_no_pisa_el_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            v = self._video(d); antes = os.path.getsize(v)
+            for modo in ("desenfoque", "recorte"):
+                r, e = herramientas.vertical(v, os.path.join(d, f"{modo}.mp4"), modo, 0.5); self.assertIsNone(e, e); self.assertEqual(herramientas.medidas(r)[:3], (1080, 1920, True))
+            r2, _e = herramientas.vertical(v, os.path.join(d, "desenfoque.mp4")); self.assertTrue(r2.endswith("desenfoque-2.mp4")); self.assertEqual(os.path.getsize(v), antes)
+            self.assertEqual([f for f in os.listdir(d) if "parcial" in f], [])
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_cortar_silencios_quita_la_pausa(self):
+        with tempfile.TemporaryDirectory() as d:
+            v = self._video(d); r, e, info = herramientas.cortar_silencios(v, os.path.join(d, "s.mp4"), -35, 0.6); self.assertIsNone(e, e)
+            antes, despues, cortes = info; self.assertAlmostEqual(antes, 6, delta=0.3); self.assertTrue(3.5 <= despues <= 4.6, despues); self.assertEqual(cortes, 1)       # 6 s − (2,5 s de silencio − 0,3 s de margen)
+            r2, e2, _i = herramientas.cortar_silencios(self._video(d, audio=False), os.path.join(d, "x.mp4")); self.assertIsNone(r2); self.assertIn("no tiene audio", e2)
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_cancelar_detiene_el_proceso_y_no_deja_archivos(self):
+        import threading, time
+        with tempfile.TemporaryDirectory() as d:
+            v = self._video(d); c = herramientas.Control(); salida = os.path.join(d, "c.mp4"); threading.Timer(0.05, c.cancelar).start()
+            r, e = herramientas.vertical(v, salida, "desenfoque", 0.5, c)
+            if r is None: self.assertEqual(e, "Cancelado."); self.assertEqual(os.listdir(d), ["v.mp4"])
 
 if __name__ == "__main__": unittest.main()

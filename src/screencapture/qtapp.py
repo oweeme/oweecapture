@@ -4,7 +4,7 @@ from PySide6.QtCore import QObject, QRect, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QLineEdit, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
-from . import atajos, burbuja, captura, clips, core, directo, kwin, portal, presentacion, selector, servicio
+from . import atajos, burbuja, captura, clips, core, directo, kwin, ventana_herramientas, portal, presentacion, selector, servicio
 from .i18n import _
 
 CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
@@ -32,9 +32,9 @@ class Ventana(QWidget):
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
         form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); form.addRow(self.efectos_camara()); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
-        self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura)
+        self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura); self.herr = QPushButton(_("Herramientas de vídeo (vertical 9:16, cortar silencios)")); self.herr.clicked.connect(self.herramientas); self.ultimo = ""
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
-        self.estado = QLabel(""); self.estado.setWordWrap(True); self.directo_activo = None; [lay.addWidget(w) for w in (self.boton, self.pausa, self.panel_directo(), self.cap, self.pres, self.estado)]
+        self.estado = QLabel(""); self.estado.setWordWrap(True); self.directo_activo = None; [lay.addWidget(w) for w in (self.boton, self.pausa, self.panel_directo(), self.cap, self.pres, self.herr, self.estado)]
         self.reloj = QTimer(self); self.reloj.timeout.connect(self.tic)
         kwin.mantener_encima([burbuja_titulo(), presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
         self.tray = bandeja(self)
@@ -52,6 +52,11 @@ class Ventana(QWidget):
         """Control de volumen de una fuente (0–200 %), activo solo si la fuente está marcada; el ajuste se aplica al guardar la grabación."""
         w = QWidget(); h = QHBoxLayout(w); h.setContentsMargins(0, 0, 0, 0); d = QSlider(Qt.Horizontal); d.setRange(0, 200); d.setValue(int(self.cfg[clave])); t = QLabel(f"{d.value()} %"); t.setMinimumWidth(48)
         d.valueChanged.connect(lambda v: t.setText(f"{v} %")); d.setEnabled(casilla.isChecked()); casilla.toggled.connect(d.setEnabled); h.addWidget(d); h.addWidget(t); setattr(self, "_" + clave, d); return w
+
+    def herramientas(self):
+        """Abre las herramientas de vídeo con la última grabación ya elegida."""
+        if getattr(self, "ventana_herr", None) and self.ventana_herr.isVisible(): self.ventana_herr.raise_(); self.ventana_herr.activateWindow(); return
+        self.ventana_herr = ventana_herramientas.VentanaHerramientas(self.ultimo if self.ultimo and os.path.exists(self.ultimo) else "", self); self.ventana_herr.show()
 
     def clip_tecla(self):
         """Ctrl+Alt+G mientras se graba o se transmite: guarda aparte los últimos N segundos (los que se hayan elegido) sin parar nada."""
@@ -219,7 +224,7 @@ class Ventana(QWidget):
     def al_terminar(self, ruta, err):
         self.fin_grabacion(); self.mostrar()          # también llega aquí si la captura se cortó desde el indicador del escritorio
         if err: self.estado.setText(self.sin_clave(err)); return
-        resumen = self.grab.resumen_efectos(); self.estado.setText(_("Guardado: ") + ruta + resumen)
+        self.ultimo = ruta; resumen = self.grab.resumen_efectos(); self.estado.setText(_("Guardado: ") + ruta + resumen)
         self.avisar(_("Grabación guardada"), ruta + resumen)
 
     def closeEvent(self, e): e.ignore(); self.hide()            # cerrar la ventana la oculta; los atajos siguen activos y se sale desde la bandeja
@@ -248,7 +253,7 @@ def bandeja(v):
     t = QSystemTrayIcon(icono(), v); m = QMenu(); v.acc = {}
     v.acc["captura"] = m.addAction(_("Captura de pantalla"), v.captura); v.acc["grabar"] = m.addAction(_("Grabar"), v.alternar)
     v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["zoom"] = m.addAction(_("Acercar / alejar (zoom)"), v.zoom_tecla); v.acc["zoom"].setVisible(False); v.acc["clip"] = m.addAction(_("Guardar clip de los últimos segundos"), v.clip_tecla); v.acc["clip"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
-    m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
+    m.addAction(_("Herramientas de vídeo…"), v.herramientas); m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
     t.setContextMenu(m); t.setToolTip("Screencapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
 
 def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
