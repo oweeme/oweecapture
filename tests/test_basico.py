@@ -93,4 +93,19 @@ class Audio(unittest.TestCase):
             self.assertGreater(medir(base, 0.2, 1.8) - medir(fuerte, 0.2, 1.8), 15)                                                     # fuerte: mucho más
             for f in (suave, fuerte): self.assertLess(abs(medir(base, 2.3, 3.7) - medir(f, 2.3, 3.7)), 1.5)                             # la voz casi no cambia
 
+class Burbuja(unittest.TestCase):
+    def test_opciones_invalidas_vuelven_al_valor_por_defecto(self):
+        from screencapture import burbuja
+        o = burbuja.limpiar({"forma": "triangulo", "borde": "rosa", "fondo": "rojo", "brillo": 999, "contraste": -3, "espejo": 1, "otra": 1})
+        self.assertEqual(o, {"forma": "circulo", "borde": "#2A9D8F", "espejo": True, "brillo": 50, "contraste": 50, "fondo": ""})
+    def test_croma_deja_transparente_el_fondo_verde_y_opaco_lo_demas(self):
+        import gi; gi.require_version("Gst", "1.0")
+        from gi.repository import Gst
+        from screencapture import burbuja
+        Gst.init(None)
+        def alfa(color):
+            p = Gst.parse_launch(burbuja.descripcion(f"videotestsrc num-buffers=3 pattern=solid-color foreground-color={color}", burbuja.limpiar({"fondo": "green"})))
+            p.set_state(Gst.State.PLAYING); b = p.get_by_name("sal").emit("pull-sample").get_buffer(); ok, i = b.map(Gst.MapFlags.READ); a = bytes(i.data)[(160 * 320 + 160) * 4 + 3]; b.unmap(i); p.set_state(Gst.State.NULL); return a
+        self.assertEqual(alfa(0xff00ff00), 0); self.assertEqual(alfa(0xffff0000), 255)
+
 if __name__ == "__main__": unittest.main()

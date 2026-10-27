@@ -3,7 +3,7 @@ import os, signal, subprocess, sys
 from PySide6.QtCore import QObject, QRect, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QPushButton, QSlider, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
 from . import atajos, burbuja, captura, core, kwin, portal, presentacion, selector, servicio
 from .i18n import _
 
@@ -29,7 +29,7 @@ class Ventana(QWidget):
         self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
         self.ruido = QComboBox(); [self.ruido.addItem(t, n) for n, t in RUIDOS]; self.ruido.setCurrentIndex(max(0, self.ruido.findData(self.cfg["ruido"]))); self.mic.toggled.connect(self.ruido.setEnabled); self.ruido.setEnabled(self.mic.isChecked())
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
-        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); lay.addLayout(form)
+        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); form.addRow(self.efectos_camara()); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
         self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura)
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
@@ -93,12 +93,30 @@ class Ventana(QWidget):
         self.limite.setEnabled(core.QUALITY[self.calidad.currentData()][2] is not None)
 
     def guardar(self):
-        self.cfg.update(quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked(), zoom=self.zoom.currentData(), halo=self.halo.isChecked(), vol_sistema=self._vol_sistema.value(), vol_mic=self._vol_mic.value(), ruido=self.ruido.currentData()); core.save_cfg(self.cfg)
+        self.cfg.update(quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked(), zoom=self.zoom.currentData(), halo=self.halo.isChecked(), vol_sistema=self._vol_sistema.value(), vol_mic=self._vol_mic.value(), ruido=self.ruido.currentData(), **{"cam_" + k: v for k, v in self.opciones_camara().items()}); core.save_cfg(self.cfg)
+
+    def efectos_camara(self):
+        """Panel plegable con los efectos de la burbuja (forma, borde, espejo, brillo, contraste, fondo); los cambios se ven al instante en la burbuja si está abierta."""
+        cont = QWidget(); lay = QVBoxLayout(cont); lay.setContentsMargins(0, 0, 0, 0); panel = QWidget(); f = QFormLayout(panel); f.setContentsMargins(18, 0, 0, 0); self.cam = {}
+        def combo(clave, opciones):
+            c = QComboBox(); [c.addItem(_(t), k) for k, t in opciones]; c.setCurrentIndex(max(0, c.findData(self.cfg[clave]))); c.currentIndexChanged.connect(self.camara_cambia); self.cam[clave] = c; return c
+        def desliz(clave, a, b, texto):
+            w = QWidget(); h = QHBoxLayout(w); h.setContentsMargins(0, 0, 0, 0); d = QSlider(Qt.Horizontal); d.setRange(a, b); d.setValue(int(self.cfg[clave])); t = QLabel(texto(d.value())); t.setMinimumWidth(48)
+            d.valueChanged.connect(lambda v: (t.setText(texto(v)), self.camara_cambia())); h.addWidget(d); h.addWidget(t); self.cam[clave] = d; return w
+        f.addRow(_("Forma"), combo("cam_forma", burbuja.FORMAS)); f.addRow(_("Borde"), combo("cam_borde", burbuja.BORDES)); self.espejo = QCheckBox(_("Espejo (como un espejo)")); self.espejo.setChecked(self.cfg["cam_espejo"]); self.espejo.toggled.connect(self.camara_cambia); f.addRow(self.espejo)
+        f.addRow(_("Brillo"), desliz("cam_brillo", -50, 50, lambda v: f"{v:+d}")); f.addRow(_("Contraste"), desliz("cam_contraste", 50, 150, lambda v: f"{v} %")); f.addRow(_("Recortar el fondo"), combo("cam_fondo", burbuja.FONDOS)); panel.setVisible(False)
+        boton = QToolButton(); boton.setText(_("Efectos de la cámara")); boton.setCheckable(True); boton.setArrowType(Qt.RightArrow); boton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon); boton.setAutoRaise(True)
+        boton.toggled.connect(lambda on: (panel.setVisible(on), boton.setArrowType(Qt.DownArrow if on else Qt.RightArrow), self.adjustSize())); lay.addWidget(boton); lay.addWidget(panel); return cont
+
+    def opciones_camara(self):
+        return burbuja.limpiar({"forma": self.cam["cam_forma"].currentData(), "borde": self.cam["cam_borde"].currentData(), "espejo": self.espejo.isChecked(), "brillo": self.cam["cam_brillo"].value(), "contraste": self.cam["cam_contraste"].value(), "fondo": self.cam["cam_fondo"].currentData()})
+    def camara_cambia(self):
+        if self.burbuja: self.burbuja.aplicar(self.opciones_camara())
 
     def cambiar_camara(self, on):
         if on and not self.burbuja:
             ok, motivo = True, ""
-            self.burbuja = burbuja.Burbuja(alcerrar=lambda: (setattr(self, "burbuja", None), self.camara.setChecked(False))); self.burbuja.show()
+            self.burbuja = burbuja.Burbuja(opciones=self.opciones_camara(), alcerrar=lambda: (setattr(self, "burbuja", None), self.camara.setChecked(False))); self.burbuja.show()
         elif not on and self.burbuja: b, self.burbuja = self.burbuja, None; b.alcerrar = None; b.close()
 
     def presentacion(self):
