@@ -1,4 +1,4 @@
-"""Herramientas para publicar un vídeo ya grabado, sin interfaz: exportar en vertical 9:16 (YouTube Shorts, TikTok, Reels) y cortar los silencios (tutoriales). Nunca tocan el original: escriben un archivo nuevo al lado.
+"""Herramientas para publicar un vídeo ya grabado, sin interfaz: recortar el principio y el final, exportar en vertical 9:16 (YouTube Shorts, TikTok, Reels) y cortar los silencios (tutoriales). Nunca tocan el original: escriben un archivo nuevo al lado.
 Cada función recibe un `Control` para poder cancelar desde la interfaz sin esperar a que ffmpeg termine."""
 import os, re, subprocess
 from . import core
@@ -101,3 +101,36 @@ def cortar_silencios(entrada, salida, umbral=-35, minimo=0.6, control=None, crf=
     rc, err = _correr(cmd, control)
     ruta, e = _cerrar(rc, err, tmp, salida, control)
     return ruta, e, ((dur, core.duration(ruta), len(quedan) - 1) if ruta else None)
+
+def a_segundos(texto):
+    """«90», «1:30», «01:02:03» o «1:30.5» → segundos (float). ValueError si no es un tiempo válido."""
+    partes = (texto or "").strip().replace(",", ".").split(":")
+    if not 1 <= len(partes) <= 3 or any(p.strip() == "" for p in partes): raise ValueError("tiempo no válido")
+    v = 0.0
+    for p in partes:
+        x = float(p)
+        if x < 0: raise ValueError("tiempo no válido")
+        v = v * 60 + x
+    return v
+
+def a_texto(seg):
+    """Segundos → «m:ss» (o «h:mm:ss» si pasa de una hora)."""
+    seg = max(0, int(round(seg))); h, r = divmod(seg, 3600); m, s = divmod(r, 60); return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+def fotograma(entrada, t, salida, ancho=240):
+    """Guarda en `salida` (PNG) el fotograma del segundo `t` (miniatura para elegir dónde cortar). Devuelve la ruta o None."""
+    try: r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{max(0.0, t):.2f}", "-i", entrada, "-frames:v", "1", "-vf", f"scale={ancho}:-2", salida], capture_output=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired): return None
+    return salida if r.returncode == 0 and os.path.exists(salida) else None
+
+def recortar(entrada, salida, inicio, fin, exacto=True, control=None, crf=18):
+    """Deja solo de `inicio` a `fin` (segundos). `exacto`: se recodifica y el corte cae en el fotograma pedido; si no, se copia sin recodificar (casi instantáneo) pero el corte puede adelantarse hasta ~2 s, al fotograma clave anterior. Devuelve (ruta, error)."""
+    m = medidas(entrada)
+    if not m: return None, "No se pudo leer el vídeo."
+    dur = m[3]; fin = min(fin, dur) if dur else fin
+    if inicio < 0 or fin - inicio < 0.3: return None, "El tiempo de inicio debe ser menor que el de fin (al menos 0,3 s de diferencia)."
+    salida = libre(salida); tmp = salida + ".parcial.mp4"
+    codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-c:a", "aac", "-b:a", "160k"] if exacto else ["-c", "copy", "-avoid_negative_ts", "make_zero"]
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{inicio:.3f}", "-i", entrada, "-t", f"{fin - inicio:.3f}"] + codec + ["-movflags", "+faststart", tmp]
+    rc, err = _correr(cmd, control)
+    return _cerrar(rc, err, tmp, salida, control)

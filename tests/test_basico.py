@@ -172,6 +172,18 @@ class Herramientas(unittest.TestCase):
             v = self._video(d); r, e, info = herramientas.cortar_silencios(v, os.path.join(d, "s.mp4"), -35, 0.6); self.assertIsNone(e, e)
             antes, despues, cortes = info; self.assertAlmostEqual(antes, 6, delta=0.3); self.assertTrue(3.5 <= despues <= 4.6, despues); self.assertEqual(cortes, 1)       # 6 s − (2,5 s de silencio − 0,3 s de margen)
             r2, e2, _i = herramientas.cortar_silencios(self._video(d, audio=False), os.path.join(d, "x.mp4")); self.assertIsNone(r2); self.assertIn("no tiene audio", e2)
+    def test_tiempos_de_texto_a_segundos_y_viceversa(self):
+        for t, v in (("90", 90), ("1:30", 90), ("01:02:03", 3723), ("1:30.5", 90.5), (" 0:07 ", 7), ("1,5", 1.5)): self.assertAlmostEqual(herramientas.a_segundos(t), v)
+        for malo in ("", "a", "1::2", "-3", "1:2:3:4", "1:-5"): self.assertRaises(ValueError, herramientas.a_segundos, malo)
+        self.assertEqual(herramientas.a_texto(90), "1:30"); self.assertEqual(herramientas.a_texto(3723), "1:02:03"); self.assertEqual(herramientas.a_texto(-4), "0:00")
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_recortar_exacto_y_rapido(self):
+        with tempfile.TemporaryDirectory() as d:
+            v = self._video(d)           # 6 s
+            r, e = herramientas.recortar(v, os.path.join(d, "e.mp4"), 1.0, 4.0, True); self.assertIsNone(e, e); self.assertAlmostEqual(core.duration(r), 3.0, delta=0.25); self.assertTrue(herramientas.medidas(r)[2])
+            r2, e2 = herramientas.recortar(v, os.path.join(d, "r.mp4"), 1.0, 4.0, False); self.assertIsNone(e2, e2); self.assertTrue(2.5 <= core.duration(r2) <= 5.2, core.duration(r2))
+            self.assertIsNotNone(herramientas.recortar(v, os.path.join(d, "x.mp4"), 3.0, 3.1)[1]); self.assertIsNotNone(herramientas.recortar(v, os.path.join(d, "x.mp4"), 5.0, 2.0)[1])
+            self.assertTrue(herramientas.fotograma(v, 2.0, os.path.join(d, "f.png")).endswith("f.png")); self.assertEqual([f for f in os.listdir(d) if "parcial" in f], [])
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_cancelar_detiene_el_proceso_y_no_deja_archivos(self):
         import threading, time
