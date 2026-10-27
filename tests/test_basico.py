@@ -44,20 +44,28 @@ class Efectos(unittest.TestCase):
     def test_pista_pasa_a_pixeles_del_video_y_resta_pausas(self):
         m = [[99_000, 500, 250], [101_000, 500, 250], [102_500, 600, 300], [104_000, 700, 350]]       # la 1.ª es anterior al inicio; la 3.ª cae en la pausa
         self.assertEqual(efectos.pista(m, self.META), [(1.0, 800.0, 400.0), (3.0, 1200.0, 600.0)])
-    def test_camara_no_se_mueve_con_el_cursor_quieto_y_queda_dentro(self):
-        p = [(0, 500, 300), (5, 500, 300)]; c = efectos.camara(p, 1000, 600, 2, 30, 5)
-        self.assertEqual(len(c), 151); self.assertTrue(all(abs(x - c[0][1]) < 1e-6 and abs(y - c[0][2]) < 1e-6 for _t, x, y, _a, _b in c))
-        for _t, x, y, _a, _b in efectos.camara([(0, 0, 0), (2, 1000, 600)], 1000, 600, 2, 30, 2): self.assertTrue(0 <= x <= 500 and 0 <= y <= 300)
+    def test_nivel_de_zoom_entra_y_sale_suave(self):
+        tr = [(2.0, 5.0)]; self.assertEqual(efectos.nivel(1, tr, 2), 1); self.assertAlmostEqual(efectos.nivel(3, tr, 2), 2); self.assertAlmostEqual(efectos.nivel(2.2, tr, 2), 1.5); self.assertEqual(efectos.nivel(7, tr, 2), 1)
+        self.assertAlmostEqual(efectos.nivel(9, [(2.0, None)], 2), 2)           # sin fin: sigue acercado hasta el final
+    def test_expresion_de_ffmpeg_coincide_con_nivel(self):
+        tr = [(1.0, 3.0), (4.0, None)]
+        for t in (0, 1.1, 2, 3.2, 3.9, 4.2, 6):
+            v = eval(efectos.expr_zoom(2.5, tr), {"min": min, "max": max, "t": t}); self.assertAlmostEqual(v, efectos.nivel(t, tr, 2.5), places=6)
+    def test_camara_queda_dentro_y_empieza_en_el_cursor(self):
+        c = efectos.camara([(0, 900, 500), (4, 900, 500)], 1000, 600, 2, 30, 4, [(1.0, None)])
+        for _t, z, x, y, _a, _b in c: self.assertTrue(0 <= x <= 1000 * z - 1000 + 1e-6 and 0 <= y <= 600 * z - 600 + 1e-6)
+        z, x, y = c[-1][1:4]; self.assertAlmostEqual(z, 2); self.assertGreater(x, 800)            # ventana de 500 px centrada hacia el cursor de la derecha
     def test_camara_sigue_al_cursor_cuando_sale_de_la_zona_central(self):
-        c = efectos.camara([(0, 100, 300), (3, 900, 300)], 1000, 600, 2, 30, 3); self.assertGreater(c[-1][1], c[0][1] + 200)
+        c = efectos.camara([(0, 100, 300), (3, 900, 300)], 1000, 600, 2, 30, 3, [(0.0, None)]); self.assertGreater(c[-1][2], c[10][2] + 300)
     def test_filtro_segun_lo_pedido(self):
-        self.assertIn("crop@c", efectos.filtro(2, False, 640, 360)[0]); self.assertNotIn("overlay", efectos.filtro(2, False, 640, 360)[0]); self.assertNotIn("crop", efectos.filtro(1, True, 640, 360)[0])
+        solo_zoom = efectos.filtro(2, False, 640, 360, [(1.0, 2.0)])[0]; self.assertIn("crop@c", solo_zoom); self.assertNotIn("overlay", solo_zoom)
+        self.assertNotIn("crop", efectos.filtro(2, True, 640, 360, [])[0]); self.assertIn("overlay", efectos.filtro(2, True, 640, 360, [])[0])
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_aplicar_reescribe_el_video_con_zoom_y_halo(self):
         with tempfile.TemporaryDirectory() as d:
             v = os.path.join(d, "v.mp4"); subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=320x180:r=30:d=2", "-pix_fmt", "yuv420p", v], check=True)
             p = [(i / 10, 40 + i * 12, 90) for i in range(21)]
-            self.assertTrue(efectos.aplicar(v, p, 2.0, True)); self.assertEqual(efectos.medidas(v)[:2], (320, 180)); self.assertEqual(os.listdir(d), ["v.mp4"])
-    def test_sin_pista_o_sin_efectos_no_toca_nada(self): self.assertFalse(efectos.aplicar("/no/existe.mp4", [], 2.0, True)); self.assertFalse(efectos.aplicar("/no/existe.mp4", [(0, 1, 1), (1, 2, 2)], 1, False))
+            self.assertTrue(efectos.aplicar(v, p, 2.0, True, tramos=[(0.5, 1.5)])); self.assertEqual(efectos.medidas(v)[:2], (320, 180)); self.assertEqual(os.listdir(d), ["v.mp4"])
+    def test_sin_pista_o_sin_efectos_no_toca_nada(self): self.assertFalse(efectos.aplicar("/no/existe.mp4", [], 2.0, True)); self.assertFalse(efectos.aplicar("/no/existe.mp4", [(0, 1, 1), (1, 2, 2)], 1, False)); self.assertFalse(efectos.aplicar("/no/existe.mp4", [(0, 1, 1), (1, 2, 2)], 2, False))     # zoom pedido pero sin tramos ni halo
 
 if __name__ == "__main__": unittest.main()

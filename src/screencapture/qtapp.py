@@ -27,7 +27,7 @@ class Ventana(QWidget):
         self.limite = QComboBox(); [self.limite.addItem(t, n) for n, t in LIMITES]; self.limite.setCurrentIndex(max(0, self.limite.findData(self.cfg["max_mb"]))); self.calidad.currentIndexChanged.connect(self.perfil_cambia); self.perfil_cambia()
         self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
-        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom que sigue al cursor"), self.zoom); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
+        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
         self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura)
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
@@ -41,7 +41,14 @@ class Ventana(QWidget):
         if que == "captura": self.captura()
         elif que == "grabar": self.alternar()
         elif que == "pausar": self.pausar()
+        elif que == "zoom": self.zoom_tecla()
         elif que == "presentacion": self.presentacion()
+
+    def zoom_tecla(self):
+        """Ctrl+Alt+Z mientras se graba: acerca (centrado en el cursor) o aleja; el efecto se aplica al terminar la grabación."""
+        r = self.grab.alternar_zoom()
+        if r is None: self.estado.setText(_("El zoom solo funciona grabando (sin pausa) y con un nivel de zoom elegido.")) if not self.grab.corriendo else None; return
+        self.estado.setText(_("Zoom: acercado") if r else _("Zoom: alejado")); subprocess.Popen(["notify-send", "-t", "1200", "-i", "screencapture", _("Zoom: acercado") if r else _("Zoom: alejado")], stderr=subprocess.DEVNULL) if core.have("notify-send") else None
 
     def con_selector(self, fondo, al_elegir):
         """Muestra el selector (sobre `fondo` congelado, o sobre el escritorio en vivo si es None) y llama a `al_elegir(zona | None)`; Esc cancela."""
@@ -125,7 +132,7 @@ class Ventana(QWidget):
         """El icono de la bandeja muestra el estado (rojo grabando, naranja en pausa) y su menú ofrece detener y pausar sin ventana."""
         g, p = self.grab.corriendo, self.grab.pausada
         self.tray.setIcon(icono_estado("pausa" if p else "grabando") if g else icono()); self.tray.setToolTip(("Screencapture — " + (_("En pausa") if p else _("Grabando")) + " " + tiempo) if g else "Screencapture")
-        self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
+        self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
         self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…") + (" " + _("(aplicando zoom y halo: puede tardar)") if self.grab.efectos else "")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
@@ -161,7 +168,7 @@ def bandeja(v):
     """Icono en la bandeja (StatusNotifier en KDE): captura, grabar o detener, pausar, abrir la ventana y salir, sin necesidad de ventana."""
     t = QSystemTrayIcon(icono(), v); m = QMenu(); v.acc = {}
     v.acc["captura"] = m.addAction(_("Captura de pantalla"), v.captura); v.acc["grabar"] = m.addAction(_("Grabar"), v.alternar)
-    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
+    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["zoom"] = m.addAction(_("Acercar / alejar (zoom)"), v.zoom_tecla); v.acc["zoom"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
     m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
     t.setContextMenu(m); t.setToolTip("Screencapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
 

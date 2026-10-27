@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.tramos = []; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -49,6 +49,13 @@ class Grabador:
     def pausar(self):
         """Pausa cerrando el trozo actual (EOS): cada trozo es un MKV válido y al continuar se abre otro; al terminar se unen sin recodificar el vídeo."""
         if self.corriendo and not self.pausada: self.pausada = True; self.t_pausa = time.time(); self.pausas.append([self.t_pausa, float('inf')]); self.pipe.send_event(Gst.Event.new_eos())
+
+    def alternar_zoom(self):
+        """Acerca o aleja el zoom en este instante de la grabación (se aplica al terminar). Devuelve True si queda acercado, False si queda alejado y None si no se puede (sin grabar, en pausa o sin zoom configurado)."""
+        if not (self.corriendo and not self.pausada and self.efectos and self.efectos[0] > 1): return None
+        t = self.segundos()
+        if self.tramos and self.tramos[-1][1] is None: self.tramos[-1][1] = t; return False
+        self.tramos.append([t, None]); return True
 
     def reanudar(self):
         if not (self.corriendo and self.pausada) or self.pipe is not None: return          # si el trozo anterior aún se está cerrando, se ignora
@@ -100,7 +107,7 @@ class Grabador:
         if self.zona:
             z = self.zona; x, y = z.x() & ~1, z.y() & ~1; w = min(ancho - x, z.width() + (z.x() - x)) & ~1; h = min(alto - y, z.height() + (z.y() - y)) & ~1      # medidas pares: H.264 las exige
             if ancho and alto and w > 0 and h > 0: self.recorte = f"videocrop left={x} top={y} right={ancho - x - w} bottom={alto - y - h} ! "; self.rect = (x, y, w, h)
-        self.segmentos = []; self.pausada = False; self.cerrando = False; self.final = False; self.en_pausa = 0; self.pausas = []
+        self.segmentos = []; self.pausada = False; self.cerrando = False; self.final = False; self.en_pausa = 0; self.pausas = []; self.tramos = []
         if self._lanzar():
             self.t0 = time.time(); self.corriendo = True
             if self.efectos and self.flujo[0]:
@@ -161,8 +168,8 @@ class Grabador:
                 shutil.rmtree(tmp, ignore_errors=True)
                 if efectos and mp4.endswith(".mp4"):
                     from . import efectos as fx
-                    p, (zoom, halo) = fx.pista(efectos[0], efectos[1]), efectos[1]["efectos"]
-                    if not fx.aplicar(mp4, p, zoom, halo, core.QUALITY[calidad][1]): self._registrar("No se pudieron aplicar los efectos (zoom/halo); se conserva la grabación sin ellos.")
+                    p, (zoom, halo), tramos = fx.pista(efectos[0], efectos[1]), efectos[1]["efectos"], efectos[1]["tramos"]
+                    if (tramos or halo) and not fx.aplicar(mp4, p, zoom, halo, core.QUALITY[calidad][1], tramos=tramos): self._registrar("No se pudieron aplicar los efectos (zoom/halo); se conserva la grabación sin ellos.")
                 if mp4.endswith(".mp4"): core.reduce_in_background(mp4, calidad, max_mb)
                 al(mp4, None)
             except Exception as e: al(None, str(e))
@@ -173,7 +180,7 @@ class Grabador:
         if not self.efectos: return None
         from . import kwin
         muestras = kwin.dejar_cursor(); ahora = time.time(); pausas = [(a, min(b, ahora)) for a, b in self.pausas]
-        meta = {"t0": self.t0, "pausas": pausas, "pantalla": self.pantalla, "flujo": self.flujo, "recorte": self.rect, "efectos": self.efectos}
+        meta = {"t0": self.t0, "pausas": pausas, "pantalla": self.pantalla, "flujo": self.flujo, "recorte": self.rect, "efectos": self.efectos, "tramos": [tuple(x) for x in self.tramos]}
         return (muestras, meta) if len(muestras) > 10 else None
 
     def _cerrar_sesion(self):

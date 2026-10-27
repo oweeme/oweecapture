@@ -1,4 +1,4 @@
-"""Atajos globales (Ctrl+Alt+R grabar o detener, Ctrl+Alt+S captura, Ctrl+Alt+P pausar o continuar, Ctrl+Alt+D modo presentación) por el portal GlobalShortcuts: KDE 6 y GNOME con el mismo código. Se emite `activado("grabar" | "captura")`.
+"""Atajos globales (Ctrl+Alt+R grabar o detener, Ctrl+Alt+S captura, Ctrl+Alt+P pausar o continuar, Ctrl+Alt+D modo presentación, Ctrl+Alt+Z zoom) por el portal GlobalShortcuts: KDE 6 y GNOME con el mismo código. Se emite `activado("grabar" | "captura")`.
 Dos cosas que se descubrieron en KDE neon (Plasma 6.8): el portal solo atiende a una aplicación con identificador propio y un `.desktop` instalado (screencapture.desktop), y KDE deja la tecla preferida como
 «ninguna»; hay que asignarla con `kglobalaccel` (pieza específica de KDE, solo si el atajo aún no tiene tecla: no se pisa lo que el usuario cambie en Ajustes)."""
 import os
@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Signal
 ATAJOS = [("grabar", "Grabar la pantalla (empezar / detener)", "CTRL+ALT+r", 0x04000000 | 0x08000000 | ord("R")),
           ("captura", "Hacer una captura de pantalla", "CTRL+ALT+s", 0x04000000 | 0x08000000 | ord("S")),
           ("pausar", "Pausar o continuar la grabación", "CTRL+ALT+p", 0x04000000 | 0x08000000 | ord("P")),
+          ("zoom", "Acercar o alejar (zoom) mientras se graba", "CTRL+ALT+z", 0x04000000 | 0x08000000 | ord("Z")),
           ("presentacion", "Activar o desactivar el modo presentación", "CTRL+ALT+d", 0x04000000 | 0x08000000 | ord("D"))]
 
 class Atajos(QObject):
