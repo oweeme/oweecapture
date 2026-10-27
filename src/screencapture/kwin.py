@@ -1,6 +1,6 @@
 """Pieza específica de KDE: en Wayland un programa no puede pedir «siempre encima» ni quitar la barra de título de sus ventanas, así que se le pide a KWin con un script mínimo por D-Bus.
 En otros escritorios no hace nada (las ventanas quedan como ventanas normales)."""
-import json, os, tempfile
+import json, os, tempfile, zlib
 from PySide6.QtCore import QTimer
 from PySide6.QtDBus import QDBusConnection, QDBusInterface
 
@@ -52,3 +52,32 @@ def recibir_ventanas(texto):
     if al_listo:
         try: al_listo(json.loads(texto))
         except ValueError: al_listo([])
+
+# --- seguimiento del cursor (para el zoom y el halo): en Wayland un programa no puede leer el puntero fuera de sus ventanas, pero KWin sí; un script QML lo lee unas 30 veces por segundo y lo envía por lotes ---
+_QML = ("import QtQuick\nimport org.kde.kwin\nItem {\n    property var lote: []\n"
+        "    DBusCall { id: envio; service: \"org.screencapture.App\"; path: \"/org/screencapture/App\"; dbusInterface: \"org.screencapture.App\"; method: \"RecibirCursor\" }\n"
+        "    Timer { interval: 33; repeat: true; running: true; onTriggered: { var p = Workspace.cursorPos; lote.push([Date.now(), Math.round(p.x), Math.round(p.y)]);\n"
+        "        if (lote.length >= 6) { envio.arguments = [JSON.stringify(lote)]; envio.call(); lote = []; } } }\n}\n")
+_NOMBRE_CURSOR = "screencapture-cursor"; muestras = []; _siguiendo = [False]
+
+def seguir_cursor():
+    """Empieza a reunir las posiciones del cursor en `muestras` ([hora en ms, x, y]). Devuelve False si no hay KWin (el zoom y el halo no están disponibles en otros escritorios)."""
+    if not disponible(): return False
+    if _siguiendo[0]: return True
+    carpeta = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache")), "screencapture", "kwin", format(zlib.crc32(_QML.encode()), "08x")); os.makedirs(carpeta, exist_ok=True)
+    ruta = os.path.join(carpeta, "cursor.qml")      # KWin guarda el QML en caché por ruta: una carpeta por versión del texto evita que se use una copia vieja
+    if not os.path.exists(ruta): open(ruta, "w").write(_QML)
+    muestras.clear(); _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR)
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadDeclarativeScript", ruta, _NOMBRE_CURSOR); ident = r.arguments()[0] if r.arguments() else -1
+    if ident < 0: return False
+    _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _siguiendo[0] = True; return True
+
+def dejar_cursor():
+    """Deja de seguir el cursor y devuelve lo reunido."""
+    if _siguiendo[0]: _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR); _siguiendo[0] = False
+    reunido = list(muestras); muestras.clear(); return reunido
+
+def recibir_cursor(texto):
+    if _siguiendo[0]:
+        try: muestras.extend(json.loads(texto))
+        except ValueError: pass

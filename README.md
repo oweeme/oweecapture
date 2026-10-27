@@ -7,6 +7,7 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 ## Qué hace hoy (interfaz Qt, probada en KDE neon con Plasma 6 en Wayland)
 - `Ctrl+Alt+S` o `screencapture --shot`: captura por el portal del escritorio, con selector de zona (arrastrar; Enter o Espacio para toda la pantalla; Esc cancela). Se guarda en Imágenes/Screenshots y se copia al portapapeles.
 - `Ctrl+Alt+R` o `screencapture --record`: elige la zona y empieza a grabar; otra vez para detener. Audio del sistema y micrófono, cuatro niveles de calidad (la reducción se hace al terminar, en segundo plano), pausa y continuar desde el icono de la bandeja. La ventana se oculta mientras se graba.
+- **Zoom que sigue al cursor** (1,5×, 2× o 2,5×) y **halo en el puntero**, para tutoriales y directos: se aplican al terminar la grabación (el proceso reescribe el vídeo y tarda según su duración). Solo en KDE Plasma, donde KWin entrega la posición del cursor; en otros escritorios las opciones aparecen desactivadas. Resaltar los clics y mostrar las teclas queda pendiente: necesita permiso de lectura de `/dev/input` (grupo `input`).
 - Burbuja de cámara redonda y arrastrable, solo mientras se graba. `screencapture --present`: dibujar sobre la pantalla (lápiz, resaltador, halo) con «pasar clics».
 - Una sola instancia: `screencapture --quit` la cierra; `--segundo-plano` arranca solo con el icono de la bandeja y los atajos.
 - Pendiente: editor de capturas en Qt (el de GTK4 sigue en el repositorio pero no funciona en KDE), elegir una ventana, GNOME.

@@ -9,6 +9,7 @@ from .i18n import _
 
 CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
 FOTOGRAMAS = [24, 30, 60]
+ZOOMS = [(0, _("Sin zoom")), (1.5, "1,5×"), (2, "2×"), (2.5, "2,5×")]
 LIMITES = [(0, _("Sin límite")), (16, _("16 MB (WhatsApp)")), (50, _("50 MB")), (100, _("100 MB"))]
 
 class Puente(QObject):
@@ -24,7 +25,9 @@ class Ventana(QWidget):
         self.camara = QCheckBox(_("Cámara en burbuja (mientras se graba)")); self.camara.setChecked(self.cfg["camera"]); self.camara.toggled.connect(lambda on: self.cambiar_camara(on and self.grab.corriendo))
         self.fps = QComboBox(); [self.fps.addItem(f"{n} fps", n) for n in FOTOGRAMAS]; self.fps.setCurrentIndex(max(0, self.fps.findData(self.cfg["fps"])))
         self.limite = QComboBox(); [self.limite.addItem(t, n) for n, t in LIMITES]; self.limite.setCurrentIndex(max(0, self.limite.findData(self.cfg["max_mb"]))); self.calidad.currentIndexChanged.connect(self.perfil_cambia); self.perfil_cambia()
-        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
+        self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
+        if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
+        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom que sigue al cursor"), self.zoom); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
         self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura)
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
@@ -71,7 +74,7 @@ class Ventana(QWidget):
         self.limite.setEnabled(core.QUALITY[self.calidad.currentData()][2] is not None)
 
     def guardar(self):
-        self.cfg.update(quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked()); core.save_cfg(self.cfg)
+        self.cfg.update(quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked(), zoom=self.zoom.currentData(), halo=self.halo.isChecked()); core.save_cfg(self.cfg)
 
     def cambiar_camara(self, on):
         if on and not self.burbuja:
@@ -96,7 +99,11 @@ class Ventana(QWidget):
         self.guardar(); self.boton.setEnabled(False); self.esconder(lambda: self.con_selector(None, self.empezar_en))
     def empezar_en(self, zona):
         self.estado.setText(_("Eligiendo la pantalla…"))              # la ventana sigue oculta: no debe salir en el vídeo
-        self.grab.iniciar(self.cfg["quality"], self.cfg["fps"], self.cfg["audio_system"], self.cfg["audio_mic"], self.al_empezar, self.al_fallar, zona, lambda ruta, err: self.puente.terminado.emit(ruta, err), self.cfg["max_mb"])
+        self.grab.iniciar(self.cfg["quality"], self.cfg["fps"], self.cfg["audio_system"], self.cfg["audio_mic"], self.al_empezar, self.al_fallar, zona, lambda ruta, err: self.puente.terminado.emit(ruta, err), self.cfg["max_mb"], (self.cfg["zoom"] or 1, self.cfg["halo"]), self.geometria_pantalla())
+
+    def geometria_pantalla(self):
+        """(x, y, ancho, alto) lógicos de la pantalla principal: con ella se lleva la posición del cursor al vídeo."""
+        g = QApplication.primaryScreen().geometry(); return (g.x(), g.y(), g.width(), g.height())
 
     def al_empezar(self):
         self.boton.setText(_("Detener")); self.boton.setEnabled(True); self.pausa.setEnabled(True); self.reloj.start(500)
@@ -121,7 +128,7 @@ class Ventana(QWidget):
         self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
-        self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
+        self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…") + (" " + _("(aplicando zoom y halo: puede tardar)") if self.grab.efectos else "")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
         self.cambiar_camara(False); self.refrescar_bandeja()
 
     def al_terminar(self, ruta, err):

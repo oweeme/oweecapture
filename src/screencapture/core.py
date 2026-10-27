@@ -12,7 +12,7 @@ def dirs():
     return (os.path.join(_dir(GLib.UserDirectory.DIRECTORY_PICTURES, "Pictures"), "Screenshots"), os.path.join(_dir(GLib.UserDirectory.DIRECTORY_VIDEOS, "Videos"), "Screen Recordings"))
 DIR_IMG, DIR_VID = dirs()
 CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "screencapture", "config.json")
-DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0}
+DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False}
 LEGACY = {"alta": "maxima", "original": "maxima", "buena": "youtube", "media": "whatsapp", "ligera": "whatsapp"}      # nombres de versiones anteriores
 
 def load_cfg():

@@ -20,6 +20,8 @@ class Servicio(dbus.service.Object):
     @dbus.service.method(NOMBRE)
     def Salir(self): self.v.salir()
     @dbus.service.method(NOMBRE, in_signature="s")
+    def RecibirCursor(self, texto): kwin.recibir_cursor(str(texto))          # lo llama el script de KWin que sigue al puntero (kwin.seguir_cursor)
+    @dbus.service.method(NOMBRE, in_signature="s")
     def RecibirVentanas(self, texto): kwin.recibir_ventanas(str(texto))      # lo llama el script que se carga en KWin (kwin.listar_ventanas)
 
 def en_marcha():
