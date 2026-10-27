@@ -6,7 +6,7 @@ import dbus, dbus.mainloop.glib
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst
-from . import audio, core, directo as dir_
+from . import audio, clips, core, directo as dir_
 from .i18n import _
 
 TOKEN = os.path.join(os.path.dirname(core.CFG), "portal.json")          # elección de pantalla recordada (restore token del portal)
@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.directo = None; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.directo = None; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -56,6 +56,15 @@ class Grabador:
         t = self.segundos()
         if self.tramos and self.tramos[-1][1] is None: self.tramos[-1][1] = t; return False
         self.tramos.append([t, None]); return True
+
+    def clip(self, segundos, al_listo):
+        """Guarda en Videos/Screen Recordings/Clips los últimos `segundos` de lo que se lleva grabado (o emitido), sin parar nada. `al_listo(ruta, error)` se llama desde un hilo. Devuelve False si ahora no se puede (sin grabar o en pausa)."""
+        if not self.corriendo or self.pausada or not self.mkv or not os.path.exists(self.mkv): return False
+        transcurrido, mkv, mezcla = time.time() - self.t_seg, self.mkv, self.mezcla; salida = os.path.join(core.DIR_VID, "Clips", f"clip-{core.stamp()}.mp4")
+        def trabajo():
+            try: r = clips.recortar(mkv, transcurrido, segundos, salida, mezcla); al_listo(r, None if r else _("No se pudo guardar el clip."))
+            except Exception as e: al_listo(None, str(e))
+        threading.Thread(target=trabajo, daemon=True).start(); return True
 
     def zoom_activo(self):
         return bool(self.corriendo and self.tramos and self.tramos[-1][1] is None)
@@ -136,7 +145,7 @@ class Grabador:
         except GLib.Error as e: self._fallo(str(e)); return False
         self.mezcla = (["sistema"], 1.0, 1.0, 0)
         bus = self.pipe.get_bus(); bus.add_signal_watch(); bus.connect("message", self._mensaje)
-        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); return True
+        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); self.t_seg = time.time(); return True
 
     def _lanzar(self):
         """Arranca la tubería de un trozo nuevo. El primero se llama video.mkv (nombre que reconoce core.recover_orphans); los siguientes, video-2.mkv…"""
@@ -153,7 +162,7 @@ class Grabador:
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False
         bus = self.pipe.get_bus(); bus.add_signal_watch(); bus.connect("message", self._mensaje)
-        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); return True
+        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); self.t_seg = time.time(); return True
 
     def _mensaje(self, bus, m):
         if self.pipe is None or m.src is None: return           # mensaje de un trozo ya cerrado

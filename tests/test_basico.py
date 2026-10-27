@@ -1,7 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from screencapture import audio, core, directo, efectos, i18n
+from screencapture import audio, clips, core, directo, efectos, i18n
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -130,5 +130,18 @@ class Directo(unittest.TestCase):
             except subprocess.TimeoutExpired: rx.kill()
             def pistas(f): return subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", f], capture_output=True, text=True).stdout.split()
             self.assertEqual(sorted(pistas(recibido)), ["aac", "h264"]); self.assertEqual(sorted(pistas(local)), ["aac", "h264"]); self.assertGreater(core.duration(recibido), 2.5)
+
+class Clips(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_recorta_los_ultimos_segundos_con_su_audio(self):
+        with tempfile.TemporaryDirectory() as d:
+            mkv = os.path.join(d, "v.mkv")      # 20 s con un fotograma clave cada 2 s y dos pistas de audio (sistema y micrófono), como la grabación del portal
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=320x180:r=24:d=20", "-f", "lavfi", "-i", "sine=f=440:d=20", "-f", "lavfi", "-i", "sine=f=880:d=20", "-map", "0:v", "-map", "1:a", "-map", "2:a",
+                            "-c:v", "libx264", "-g", "48", "-c:a", "libopus", "-pix_fmt", "yuv420p", mkv], check=True)
+            salida = os.path.join(d, "clips", "c.mp4"); r = clips.recortar(mkv, 20, 6, salida, (["sistema", "mic"], 1.0, 1.0, 0))
+            self.assertEqual(r, salida); dur = core.duration(salida); self.assertTrue(5.5 <= dur <= 9.5, dur)         # 6 s pedidos + hasta 3 s más por el fotograma clave anterior
+            self.assertEqual(sorted(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", salida], capture_output=True, text=True).stdout.split()), ["aac", "h264"])   # audio mezclado en una pista
+            self.assertTrue(core.duration(clips.recortar(mkv, 20, 120, os.path.join(d, "todo.mp4"))) >= 19)          # pedir más de lo grabado: sale todo
+    def test_sin_archivo_no_hay_clip(self): self.assertIsNone(clips.recortar("/no/existe.mkv", 10, 5, "/tmp/x.mp4"))
 
 if __name__ == "__main__": unittest.main()
