@@ -1,13 +1,22 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
-import os, sys, tempfile, unittest
+import json, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from screencapture import core, i18n
 
 class Calidades(unittest.TestCase):
-    def test_niveles(self): self.assertEqual(set(core.QUALITY), {"original", "buena", "media", "ligera"})
-    def test_original_y_buena_no_se_recomprimen(self): self.assertIsNone(core.QUALITY["original"][2]); self.assertIsNone(core.QUALITY["buena"][2])
-    def test_media_y_ligera_reducen_a_720p(self): self.assertEqual(core.QUALITY["media"][2]["height"], 720); self.assertLess(core.QUALITY["ligera"][2]["crf"] - core.QUALITY["media"][2]["crf"], 9)
+    def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
+    def test_youtube_y_maxima_no_se_recomprimen(self): self.assertIsNone(core.QUALITY["youtube"][2]); self.assertIsNone(core.QUALITY["maxima"][2])
+    def test_whatsapp_reduce_a_720p_con_calidad_que_no_pixela(self):
+        r = core.QUALITY["whatsapp"][2]; self.assertEqual(r["height"], 720); self.assertLessEqual(r["crf"], 24)      # crf 27 (versión anterior) dejaba el texto borroso
+    def test_maxima_es_mas_fiel_que_youtube(self): self.assertLess(core.QUALITY["maxima"][1], core.QUALITY["youtube"][1])
     def test_config_por_defecto_valida(self): self.assertIn(core.load_cfg()["quality"], core.QUALITY)
+    def test_nombres_de_versiones_anteriores(self):
+        with tempfile.TemporaryDirectory() as d:
+            viejo = core.CFG; core.CFG = os.path.join(d, "config.json")
+            try:
+                for antes, ahora in (("alta", "maxima"), ("original", "maxima"), ("buena", "youtube"), ("media", "whatsapp"), ("ligera", "whatsapp"), ("rara", "whatsapp")):
+                    open(core.CFG, "w").write(json.dumps({"quality": antes})); self.assertEqual(core.load_cfg()["quality"], ahora, antes)
+            finally: core.CFG = viejo
 
 class Textos(unittest.TestCase):
     def test_marcadores(self): self.assertEqual(i18n._("Monitor {0}", 2), "Monitor 2")

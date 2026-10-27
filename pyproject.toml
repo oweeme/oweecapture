@@ -10,11 +10,11 @@ readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
 authors = [{ name = "Hector Martinez" }]
-# PyGObject y GTK4 vienen del sistema (python3-gi, gir1.2-gtk-4.0, gir1.2-gtk4layershell-1.0), no de pip
+# PyGObject, GStreamer y PySide6 vienen del sistema (python3-gi, gir1.2-gst-plugins-base-1.0, gstreamer1.0-pipewire, python3-pyside6.*), no de pip
 dependencies = []
 
 [project.scripts]
-screencapture = "screencapture.app:main"
+screencapture = "screencapture.qtapp:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "media"; self.tmp = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -64,10 +64,10 @@ class Grabador:
         self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
         metodo(*args, opciones)
 
-    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None):
+    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0):
         """`zona`: QRect en píxeles de la pantalla (o None para todo). El portal entrega la pantalla entera y la zona se recorta en la tubería."""
         if self.corriendo or self.sesion: return
-        self.calidad = calidad if calidad in core.QUALITY else "media"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona
+        self.calidad = calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
@@ -147,13 +147,13 @@ class Grabador:
         if self.cerrando: return False
         self.cerrando = True
         if self.pipe is not None: self.pipe.get_bus().remove_signal_watch(); self.pipe.set_state(Gst.State.NULL); self.pipe = None
-        self._cerrar_sesion(); segs, calidad, al, tmp = list(self.segmentos), self.calidad, self.al_terminar, self.tmp
+        self._cerrar_sesion(); segs, calidad, al, tmp, max_mb = list(self.segmentos), self.calidad, self.al_terminar, self.tmp, self.max_mb
         def trabajo():
             try:
                 if not any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in segs): al(None, _("La grabación quedó vacía.")); return
                 os.makedirs(core.DIR_VID, exist_ok=True); mp4 = juntar(segs, os.path.join(core.DIR_VID, f"grabacion-{core.stamp()}.mp4"))
                 shutil.rmtree(tmp, ignore_errors=True)
-                if mp4.endswith(".mp4"): core.reduce_in_background(mp4, calidad)
+                if mp4.endswith(".mp4"): core.reduce_in_background(mp4, calidad, max_mb)
                 al(mp4, None)
             except Exception as e: al(None, str(e))
         threading.Thread(target=trabajo, daemon=True).start(); return False

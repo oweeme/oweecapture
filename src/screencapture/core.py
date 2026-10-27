@@ -12,14 +12,15 @@ def dirs():
     return (os.path.join(_dir(GLib.UserDirectory.DIRECTORY_PICTURES, "Pictures"), "Screenshots"), os.path.join(_dir(GLib.UserDirectory.DIRECTORY_VIDEOS, "Videos"), "Screen Recordings"))
 DIR_IMG, DIR_VID = dirs()
 CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "screencapture", "config.json")
-DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "media"}
+DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0}
+LEGACY = {"alta": "maxima", "original": "maxima", "buena": "youtube", "media": "whatsapp", "ligera": "whatsapp"}      # nombres de versiones anteriores
 
 def load_cfg():
     try: d = json.load(open(CFG))
     except (OSError, ValueError): d = {}
     cfg = {**DEFAULTS, **{k: v for k, v in d.items() if k in DEFAULTS}}
-    if cfg["quality"] == "alta": cfg["quality"] = "original"       # nombre de la versión anterior
-    if cfg["quality"] not in QUALITY: cfg["quality"] = "media"
+    cfg["quality"] = LEGACY.get(cfg["quality"], cfg["quality"])
+    if cfg["quality"] not in QUALITY: cfg["quality"] = "whatsapp"
     return cfg
 
 def save_cfg(d):
@@ -30,11 +31,12 @@ def have(p): return shutil.which(p) is not None
 
 # Temporales de grabación: en el disco (no en /tmp, que es memoria RAM: una grabación larga se comería la memoria del equipo)
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "screencapture", "rec")
-# Calidad: (preset y crf al grabar, reducción posterior). Al grabar se usa poca CPU (ultrafast) y al terminar, en segundo plano y con prioridad baja, se reduce el archivo.
-QUALITY = {"original": ("veryfast", 20, None),                                                                   # máxima fidelidad, sin reducir
-           "buena": ("veryfast", 25, None),                                                                       # nítida y más ligera: se graba directo con buena compresión (recomprimir después pesaba MÁS)
-           "media": ("ultrafast", 26, {"height": 720, "crf": 27, "fps": 0, "abr": "96k"}),                        # intermedia (recomendada): graba rápido y reduce a 720p al terminar
-           "ligera": ("ultrafast", 26, {"height": 720, "crf": 31, "fps": 20, "abr": "64k"})}                      # básica: 720p a 20 fps, la más pequeña
+# Perfiles por destino: (preset y crf al grabar, reducción posterior). Al grabar se usa poca CPU y al terminar, en segundo plano y con prioridad baja, se reduce el archivo si el perfil lo pide.
+# WhatsApp / Telegram: se graba con calidad alta (crf 20) y se reduce a 720p con crf 23 y escalado lanczos (texto nítido; medido: bajar de crf 27 a 23 sube el SSIM de 0,9927 a 0,9951 por un 36 % más de tamaño).
+# YouTube: se graba directo con buena compresión y sin reducir (recomprimir después pesaba más). Máxima: casi sin pérdidas, para editar y aplicar efectos (se recomienda 60 fotogramas).
+QUALITY = {"whatsapp": ("ultrafast", 20, {"height": 720, "crf": 23, "fps": 0, "abr": "96k", "preset": "faster"}),
+           "youtube": ("veryfast", 18, None),
+           "maxima": ("veryfast", 12, None)}
 MIN_FREE = 1 << 30      # no se empieza a grabar con menos de 1 GB libre
 
 _SCOPE = None
@@ -63,15 +65,23 @@ def prune_stale():
             if time.time() - os.path.getmtime(p) > 86400 and not os.path.exists(f"/proc/{pid}"): shutil.rmtree(p, ignore_errors=True)
     except OSError: pass
 
-def reduce_in_background(path, q):
+def duration(path):
+    """Duración en segundos según ffprobe (0 si no se puede saber)."""
+    try: return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True, timeout=20).stdout.strip() or 0)
+    except (OSError, ValueError, subprocess.TimeoutExpired): return 0
+
+def reduce_in_background(path, q, max_mb=0):
     """Reduce `path` (MP4) según la calidad elegida, sin bloquear nada: proceso aparte con prioridad baja que sigue aunque se cierre la capturadora.
     Escribe en un archivo temporal y solo reemplaza al original si el resultado es más pequeño; si algo falla, el original queda intacto."""
     r = QUALITY[q][2]
     if not r or not have("ffmpeg"): return False
     tmp = path[:-4] + ".reduciendo.mp4"
-    vf = f"scale=-2:'min({r['height']},ih)'" + (f",fps={r['fps']}" if r["fps"] else "")
+    vf = f"scale=-2:'min({r['height']},ih)':flags=lanczos" + (f",fps={r['fps']}" if r["fps"] else "")
+    limite = []
+    if max_mb and duration(path) > 0:                       # tope de tamaño: crf con velocidad máxima (calidad constante mientras quepa; si no, baja lo justo)
+        kbps = max(150, int(max_mb * 8192 * 0.92 / duration(path)) - int(r["abr"].rstrip("k"))); limite = ["-maxrate", f"{kbps}k", "-bufsize", f"{kbps * 2}k"]
     thr = str(max(1, (os.cpu_count() or 2) // 2))
-    ff = ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", str(r["crf"]), "-pix_fmt", "yuv420p", "-threads", thr,
+    ff = ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-vf", vf, "-c:v", "libx264", "-preset", r.get("preset", "veryfast"), "-crf", str(r["crf"])] + limite + ["-pix_fmt", "yuv420p", "-threads", thr,
           "-c:a", "aac", "-b:a", r["abr"], "-movflags", "+faststart", tmp]
     script = ('in=$1; tmp=$2; title=$3; shift 3\n'
               'if command -v ionice >/dev/null 2>&1; then nice -n 15 ionice -c3 "$@" >/dev/null 2>&1; else nice -n 15 "$@" >/dev/null 2>&1; fi || { rm -f "$tmp"; exit 1; }\n'

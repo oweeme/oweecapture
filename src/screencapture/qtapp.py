@@ -4,10 +4,12 @@ from PySide6.QtCore import QObject, QRect, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from . import atajos, burbuja, captura, core, kwin, portal, presentacion, selector
+from . import atajos, burbuja, captura, core, kwin, portal, presentacion, selector, servicio
 from .i18n import _
 
-CALIDADES = [("original", _("Original")), ("buena", _("Buena")), ("media", _("Intermedia (recomendada)")), ("ligera", _("Básica (WhatsApp, Telegram)"))]
+CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
+FOTOGRAMAS = [24, 30, 60]
+LIMITES = [(0, _("Sin límite")), (16, _("16 MB (WhatsApp)")), (50, _("50 MB")), (100, _("100 MB"))]
 
 class Puente(QObject):
     """Los avisos del hilo que convierte a MP4 vuelven al hilo de la interfaz por una señal de Qt."""
@@ -20,7 +22,9 @@ class Ventana(QWidget):
         self.calidad = QComboBox(); [self.calidad.addItem(t, k) for k, t in CALIDADES]; self.calidad.setCurrentIndex(max(0, self.calidad.findData(self.cfg["quality"])))
         self.sistema = QCheckBox(_("Audio del sistema")); self.sistema.setChecked(self.cfg["audio_system"]); self.mic = QCheckBox(_("Micrófono")); self.mic.setChecked(self.cfg["audio_mic"])
         self.camara = QCheckBox(_("Cámara en burbuja (mientras se graba)")); self.camara.setChecked(self.cfg["camera"]); self.camara.toggled.connect(lambda on: self.cambiar_camara(on and self.grab.corriendo))
-        form.addRow(_("Calidad"), self.calidad); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
+        self.fps = QComboBox(); [self.fps.addItem(f"{n} fps", n) for n in FOTOGRAMAS]; self.fps.setCurrentIndex(max(0, self.fps.findData(self.cfg["fps"])))
+        self.limite = QComboBox(); [self.limite.addItem(t, n) for n, t in LIMITES]; self.limite.setCurrentIndex(max(0, self.limite.findData(self.cfg["max_mb"]))); self.calidad.currentIndexChanged.connect(self.perfil_cambia); self.perfil_cambia()
+        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(self.sistema); form.addRow(self.mic); form.addRow(self.camara); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
         self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura)
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
@@ -33,11 +37,16 @@ class Ventana(QWidget):
     def atajo(self, que):
         if que == "captura": self.captura()
         elif que == "grabar": self.alternar()
+        elif que == "pausar": self.pausar()
+        elif que == "presentacion": self.presentacion()
 
     def con_selector(self, fondo, al_elegir):
         """Muestra el selector (sobre `fondo` congelado, o sobre el escritorio en vivo si es None) y llama a `al_elegir(zona | None)`; Esc cancela."""
         if self.selector: return
-        self.selector = selector.Selector(fondo); self.selector.elegido.connect(lambda z: (setattr(self, "selector", None), al_elegir(z)))
+        self.selector = True                                                      # reserva: evita abrir dos selectores mientras KWin responde
+        kwin.listar_ventanas(lambda ventanas: self.mostrar_selector(fondo, ventanas, al_elegir))
+    def mostrar_selector(self, fondo, ventanas, al_elegir):
+        self.selector = selector.Selector(fondo, ventanas); self.selector.elegido.connect(lambda z: (setattr(self, "selector", None), al_elegir(z)))
         self.selector.cancelado.connect(lambda: (setattr(self, "selector", None), self.estado.setText(_("Cancelado.")), self.boton.setEnabled(True), self.mostrar())); self.selector.showFullScreen()
 
     def esconder(self, despues):
@@ -57,8 +66,12 @@ class Ventana(QWidget):
             subprocess.Popen(["notify-send", "-i", "screencapture", _("Captura guardada"), ruta], stderr=subprocess.DEVNULL) if core.have("notify-send") else None
         except Exception as e: self.estado.setText(str(e))
 
+    def perfil_cambia(self):
+        """El tope de tamaño solo se aplica a los perfiles que reducen al terminar (WhatsApp / Telegram); YouTube y Máxima conservan lo grabado."""
+        self.limite.setEnabled(core.QUALITY[self.calidad.currentData()][2] is not None)
+
     def guardar(self):
-        self.cfg.update(quality=self.calidad.currentData(), audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked()); core.save_cfg(self.cfg)
+        self.cfg.update(quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked()); core.save_cfg(self.cfg)
 
     def cambiar_camara(self, on):
         if on and not self.burbuja:
@@ -67,8 +80,12 @@ class Ventana(QWidget):
         elif not on and self.burbuja: b, self.burbuja = self.burbuja, None; b.alcerrar = None; b.close()
 
     def presentacion(self):
-        if self.dibujo: return
-        self.dibujo = presentacion.Dibujo(alcerrar=lambda: setattr(self, "dibujo", None)); self.dibujo.showFullScreen(); self.dibujo.barra.show()
+        """Activa o desactiva el modo presentación (desde la ventana, la bandeja o los controles de la propia capa de dibujo)."""
+        if self.dibujo: self.dibujo.close(); return
+        self.dibujo = presentacion.Dibujo(alcerrar=self.presentacion_cerrada); self.dibujo.showFullScreen(); self.dibujo.barra.show(); self.refrescar_presentacion()
+    def presentacion_cerrada(self): self.dibujo = None; self.refrescar_presentacion()
+    def refrescar_presentacion(self):
+        texto = _("Desactivar el modo presentación") if self.dibujo else _("Modo presentación"); self.pres.setText(texto); self.acc["presentacion"].setText(texto)
 
     def alternar(self):
         if self.grab.corriendo: self.parar()
@@ -79,7 +96,7 @@ class Ventana(QWidget):
         self.guardar(); self.boton.setEnabled(False); self.esconder(lambda: self.con_selector(None, self.empezar_en))
     def empezar_en(self, zona):
         self.estado.setText(_("Eligiendo la pantalla…"))              # la ventana sigue oculta: no debe salir en el vídeo
-        self.grab.iniciar(self.cfg["quality"], self.cfg["fps"], self.cfg["audio_system"], self.cfg["audio_mic"], self.al_empezar, self.al_fallar, zona, lambda ruta, err: self.puente.terminado.emit(ruta, err))
+        self.grab.iniciar(self.cfg["quality"], self.cfg["fps"], self.cfg["audio_system"], self.cfg["audio_mic"], self.al_empezar, self.al_fallar, zona, lambda ruta, err: self.puente.terminado.emit(ruta, err), self.cfg["max_mb"])
 
     def al_empezar(self):
         self.boton.setText(_("Detener")); self.boton.setEnabled(True); self.pausa.setEnabled(True); self.reloj.start(500)
@@ -137,15 +154,22 @@ def bandeja(v):
     """Icono en la bandeja (StatusNotifier en KDE): captura, grabar o detener, pausar, abrir la ventana y salir, sin necesidad de ventana."""
     t = QSystemTrayIcon(icono(), v); m = QMenu(); v.acc = {}
     v.acc["captura"] = m.addAction(_("Captura de pantalla"), v.captura); v.acc["grabar"] = m.addAction(_("Grabar"), v.alternar)
-    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False)
+    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
     m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
     t.setContextMenu(m); t.setToolTip("Screencapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
 
+def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
+
 def main():
+    orden = next((servicio.ORDENES[a] for a in sys.argv[1:] if a in servicio.ORDENES), None)
+    if servicio.en_marcha():                                                       # ya hay otra instancia: se le pasa la orden (o se le pide que muestre la ventana) y se termina
+        servicio.enviar(orden or "Mostrar"); return
+    if orden == "Salir": return                                                    # --quit sin instancia: nada que cerrar
     signal.signal(signal.SIGINT, lambda *a: QApplication.quit())                  # Ctrl+C en la terminal cierra la aplicación
-    app = QApplication(sys.argv); app.setApplicationName("screencapture"); app.setDesktopFileName("screencapture"); app.setQuitOnLastWindowClosed(False); v = Ventana()
+    app = QApplication(sys.argv); app.setApplicationName("screencapture"); app.setDesktopFileName("screencapture"); app.setQuitOnLastWindowClosed(False); v = Ventana(); oferta = servicio.ofrecer(v)
     pulso = QTimer(); pulso.start(300); pulso.timeout.connect(lambda: None)         # deja que Python atienda las señales mientras Qt espera
-    if "--segundo-plano" not in sys.argv: v.show()          # con --segundo-plano solo atiende a los atajos
+    if orden in ("Captura", "Grabar", "Presentacion"): QTimer.singleShot(300, lambda: servicio_orden(v, orden))      # arranque con una orden: se ejecuta y la aplicación queda en la bandeja
+    elif "--segundo-plano" not in sys.argv: v.show()          # con --segundo-plano solo atiende a los atajos
     sys.exit(app.exec())
 
 if __name__ == "__main__": main()
