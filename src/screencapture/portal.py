@@ -6,7 +6,7 @@ import dbus, dbus.mainloop.glib
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst
-from . import audio, core
+from . import audio, core, directo as dir_
 from .i18n import _
 
 TOKEN = os.path.join(os.path.dirname(core.CFG), "portal.json")          # elección de pantalla recordada (restore token del portal)
@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.directo = None; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -48,7 +48,7 @@ class Grabador:
 
     def pausar(self):
         """Pausa cerrando el trozo actual (EOS): cada trozo es un MKV válido y al continuar se abre otro; al terminar se unen sin recodificar el vídeo."""
-        if self.corriendo and not self.pausada: self.pausada = True; self.t_pausa = time.time(); self.pausas.append([self.t_pausa, float('inf')]); self.pipe.send_event(Gst.Event.new_eos())
+        if self.corriendo and not self.pausada and not self.directo: self.pausada = True; self.t_pausa = time.time(); self.pausas.append([self.t_pausa, float('inf')]); self.pipe.send_event(Gst.Event.new_eos())
 
     def alternar_zoom(self):
         """Acerca o aleja el zoom en este instante de la grabación (se aplica al terminar). Devuelve True si queda acercado, False si queda alejado y None si no se puede (sin grabar, en pausa o sin zoom configurado)."""
@@ -62,7 +62,7 @@ class Grabador:
 
     def resumen_efectos(self):
         """Texto para el aviso final: qué efectos se aplicaron de verdad (vacío si no se pidió ninguno)."""
-        return f" — {self.aplicado}" if self.aplicado else ""
+        return "".join(f" — {x}" for x in (self.nota, self.aplicado) if x)
 
     def reanudar(self):
         if not (self.corriendo and self.pausada) or self.pipe is not None: return          # si el trozo anterior aún se está cerrando, se ignora
@@ -78,11 +78,11 @@ class Grabador:
         self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
         metodo(*args, opciones)
 
-    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0, efectos=None, pantalla=None, mezcla=(1.0, 1.0, 0)):
+    def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0, efectos=None, pantalla=None, mezcla=(1.0, 1.0, 0), directo=None):
         """`zona`: QRect en píxeles de la pantalla (o None para todo). El portal entrega la pantalla entera y la zona se recorta en la tubería.
-        `efectos`: (zoom, halo) para aplicar al terminar (con zoom 1 y sin halo, ninguno); `mezcla`: (volumen del sistema, volumen del micrófono, nivel de reducción de ruido 0-2) que se aplica al guardar; `pantalla`: (x, y, ancho, alto) lógicos de la pantalla que se graba, para situar el cursor en el vídeo."""
+        `efectos`: (zoom, halo) para aplicar al terminar (con zoom 1 y sin halo, ninguno); `mezcla`: (volumen del sistema, volumen del micrófono, nivel de reducción de ruido 0-2) que se aplica al guardar; `directo`: {"url", "clave", "alto", "kbps"} para transmitir por RTMP mientras se guarda una copia local (sin pausa ni efectos posteriores); `pantalla`: (x, y, ancho, alto) lógicos de la pantalla que se graba, para situar el cursor en el vídeo."""
         if self.corriendo or self.sesion: return
-        self.calidad = calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla else None; self.pantalla = pantalla; self.mezcla = ([f for f, on in (('sistema', sistema), ('mic', mic)) if on],) + tuple(mezcla)
+        self.calidad = "youtube" if directo else calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla and not directo else None; self.directo = directo; self.nota = ""; self.pantalla = pantalla; self.mezcla = ([f for f, on in (('sistema', sistema), ('mic', mic)) if on],) + tuple(mezcla)
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
@@ -93,10 +93,14 @@ class Grabador:
     def _registrar(self, texto):
         """Deja el detalle técnico de un fallo en ~/.cache/screencapture/error.log (el aviso de la ventana es corto)."""
         try:
-            os.makedirs(os.path.dirname(LOG), exist_ok=True); open(LOG, "a").write(f"{time.strftime('%F %T')} {texto}\n")
+            os.makedirs(os.path.dirname(LOG), exist_ok=True); open(LOG, "a").write(f"{time.strftime('%F %T')} {self._ocultar(texto)}\n")
         except OSError: pass
 
-    def _fallo(self, mensaje): self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(mensaje)
+    def _ocultar(self, texto):
+        """Los mensajes de error de GStreamer pueden traer la URL con la clave de transmisión: nunca se muestra ni se guarda."""
+        return dir_.ocultar(str(texto), self.directo["clave"]) if self.directo else str(texto)
+
+    def _fallo(self, mensaje): self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(self._ocultar(mensaje))
 
     def _elegir(self, r):
         self.sesion = r["session_handle"]
@@ -122,8 +126,21 @@ class Grabador:
                 if not kwin.seguir_cursor(): self.efectos = None          # sin KWin no hay posición del cursor: se graba sin zoom ni halo
             self.al_empezar()
 
+    def _lanzar_directo(self):
+        """Tubería de directo (ver directo.py): una sola codificación para la red y la copia local. La copia queda con el audio ya mezclado en una pista: no hay ajustes posteriores."""
+        ancho, alto = (self.rect[2], self.rect[3]) if self.rect else self.flujo
+        self.mkv = os.path.join(self.tmp, "video.mkv")
+        fuentes = ([('pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true', self.mezcla[1])] if self.sistema else []) + ([("pipewiresrc do-timestamp=true", self.mezcla[2])] if self.mic else [])
+        desc = dir_.descripcion(f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000", self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv, self.directo["url"])
+        try: self.pipe = Gst.parse_launch(desc)
+        except GLib.Error as e: self._fallo(str(e)); return False
+        self.mezcla = (["sistema"], 1.0, 1.0, 0)
+        bus = self.pipe.get_bus(); bus.add_signal_watch(); bus.connect("message", self._mensaje)
+        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); return True
+
     def _lanzar(self):
         """Arranca la tubería de un trozo nuevo. El primero se llama video.mkv (nombre que reconoce core.recover_orphans); los siguientes, video-2.mkv…"""
+        if self.directo: return self._lanzar_directo()
         preset, crf, _red = core.QUALITY[self.calidad]
         self.mkv = os.path.join(self.tmp, "video.mkv" if not self.segmentos else f"video-{len(self.segmentos) + 1}.mkv")
         audio = ""
@@ -142,9 +159,10 @@ class Grabador:
         if self.pipe is None or m.src is None: return           # mensaje de un trozo ya cerrado
         if m.type == Gst.MessageType.ERROR and self.corriendo:
             e, detalle = m.parse_error(); self.corriendo = False; self.pausada = False
+            if self.directo: self.nota = _("la transmisión se cortó: ") + self._ocultar(e.message)
             self._registrar(f"{e} | {detalle} | zona={self.zona} | origen={m.src.get_name()}")
             if any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in self.segmentos): self._fin_eos(); return      # lo más probable: se cortó desde el indicador del escritorio («Dejar de compartir»); se guarda lo grabado
-            self.pipe.set_state(Gst.State.NULL); self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(_("Error al grabar: ") + str(e) + _(" (detalle en ") + LOG + ")")
+            self.pipe.set_state(Gst.State.NULL); self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(_("Error al grabar: ") + self._ocultar(e) + _(" (detalle en ") + LOG + ")")
         elif m.type == Gst.MessageType.EOS and isinstance(m.src, Gst.Pipeline):
             if self.pausada and not self.final: self._cerrar_trozo()          # fin de un trozo por una pausa: la grabación sigue abierta
             else: self._fin_eos()

@@ -13,6 +13,7 @@ def dirs():
 DIR_IMG, DIR_VID = dirs()
 CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "screencapture", "config.json")
 DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False, "vol_sistema": 100, "vol_mic": 100, "ruido": 0,
+            "directo_plataforma": "youtube", "directo_url": "", "directo_clave": "", "directo_recordar": False, "directo_calidad": "720",
             "cam_forma": "circulo", "cam_borde": "#2A9D8F", "cam_espejo": False, "cam_brillo": 0, "cam_contraste": 100, "cam_fondo": ""}
 LEGACY = {"alta": "maxima", "original": "maxima", "buena": "youtube", "media": "whatsapp", "ligera": "whatsapp"}      # nombres de versiones anteriores
 
@@ -25,7 +26,7 @@ def load_cfg():
     return cfg
 
 def save_cfg(d):
-    os.makedirs(os.path.dirname(CFG), exist_ok=True); tmp = CFG + ".tmp"; open(tmp, "w").write(json.dumps(d, indent=1)); os.replace(tmp, CFG)
+    os.makedirs(os.path.dirname(CFG), exist_ok=True); tmp = CFG + ".tmp"; open(tmp, "w").write(json.dumps(d, indent=1)); os.chmod(tmp, 0o600); os.replace(tmp, CFG)      # puede guardar la clave de transmisión: solo el usuario la lee
 
 def stamp(): return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 def have(p): return shutil.which(p) is not None

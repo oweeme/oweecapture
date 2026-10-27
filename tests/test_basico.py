@@ -1,7 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from screencapture import audio, core, efectos, i18n
+from screencapture import audio, core, directo, efectos, i18n
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -107,5 +107,28 @@ class Burbuja(unittest.TestCase):
             p = Gst.parse_launch(burbuja.descripcion(f"videotestsrc num-buffers=3 pattern=solid-color foreground-color={color}", burbuja.limpiar({"fondo": "green"})))
             p.set_state(Gst.State.PLAYING); b = p.get_by_name("sal").emit("pull-sample").get_buffer(); ok, i = b.map(Gst.MapFlags.READ); a = bytes(i.data)[(160 * 320 + 160) * 4 + 3]; b.unmap(i); p.set_state(Gst.State.NULL); return a
         self.assertEqual(alfa(0xff00ff00), 0); self.assertEqual(alfa(0xffff0000), 255)
+
+class Directo(unittest.TestCase):
+    def test_destino_valida_servidor_y_clave(self):
+        self.assertEqual(directo.destino(" rtmp://a.rtmp.youtube.com/live2/ ", " abc-123 "), "rtmp://a.rtmp.youtube.com/live2/abc-123")
+        for url, clave in (("http://x/live", "k"), ("", "k"), ("rtmp://x/live", "  ")): self.assertRaises(ValueError, directo.destino, url, clave)
+    def test_la_clave_no_se_filtra_en_los_mensajes(self): self.assertEqual(directo.ocultar("fallo en rtmp://x/live/SECRETA", "SECRETA"), "fallo en rtmp://x/live/***"); self.assertEqual(directo.ocultar("hola", ""), "hola")
+    def test_dimensiones_pares_y_sin_ampliar(self):
+        self.assertEqual(directo.dimensiones(1366, 768, 720), (1280, 720)); self.assertEqual(directo.dimensiones(1366, 768, 1080), (1366, 768)); self.assertEqual(directo.dimensiones(720, 1280, 720), (406, 720))
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_emite_a_un_receptor_rtmp_y_guarda_copia_local(self):
+        import gi, time, threading; gi.require_version("Gst", "1.0")
+        from gi.repository import Gst
+        Gst.init(None)
+        if not all(Gst.ElementFactory.find(e) for e in ("x264enc", "rtmp2sink", "avenc_aac", "flvmux")): self.skipTest("faltan complementos de GStreamer")
+        with tempfile.TemporaryDirectory() as d:
+            recibido = os.path.join(d, "recibido.flv"); local = os.path.join(d, "local.mkv")
+            rx = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-listen", "1", "-f", "flv", "-i", "rtmp://127.0.0.1:19350/live/clave", "-c", "copy", recibido]); time.sleep(1)
+            desc = directo.descripcion("videotestsrc is-live=true pattern=ball", "", 30, 1500, (640, 360), [("audiotestsrc is-live=true wave=sine freq=440 volume=0.3", 1.0)], local, directo.destino("rtmp://127.0.0.1:19350/live", "clave"))
+            p = Gst.parse_launch(desc); p.set_state(Gst.State.PLAYING); time.sleep(4); p.send_event(Gst.Event.new_eos()); p.get_bus().timed_pop_filtered(8 * Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR); p.set_state(Gst.State.NULL)
+            try: rx.wait(timeout=10)
+            except subprocess.TimeoutExpired: rx.kill()
+            def pistas(f): return subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", f], capture_output=True, text=True).stdout.split()
+            self.assertEqual(sorted(pistas(recibido)), ["aac", "h264"]); self.assertEqual(sorted(pistas(local)), ["aac", "h264"]); self.assertGreater(core.duration(recibido), 2.5)
 
 if __name__ == "__main__": unittest.main()
