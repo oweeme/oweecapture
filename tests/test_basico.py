@@ -357,6 +357,20 @@ class InicioConElEscritorio(unittest.TestCase):
         finally: inicio.shutil.which = real
         self.assertIn("PYTHONPATH=", c); self.assertIn("-m oweecapture.qtapp --segundo-plano", c)
 
+class PaqueteDeb(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("dpkg-deb"), "sin dpkg-deb")
+    def test_el_deb_trae_el_comando_el_lanzador_las_traducciones_y_ninguna_cache(self):
+        raiz = os.path.join(os.path.dirname(__file__), ".."); r = subprocess.run([os.path.join(raiz, "packaging", "crear_deb.sh"), "9.8.7"], capture_output=True, text=True, cwd=raiz); self.assertEqual(r.returncode, 0, r.stderr)
+        deb = os.path.join(raiz, "dist", "oweecapture_9.8.7_all.deb")
+        try:
+            ctl = subprocess.run(["dpkg-deb", "-f", deb], capture_output=True, text=True).stdout; self.assertIn("Package: oweecapture", ctl); self.assertIn("Version: 9.8.7", ctl); self.assertIn("python3-pyside6.qtwidgets", ctl); self.assertIn("Maintainer: Hector Martinez <hector@oweeme.com>", ctl)
+            lista = subprocess.run(["dpkg-deb", "-c", deb], capture_output=True, text=True).stdout; self.assertRegex(lista, r"-rwxr-xr-x root/root .* \./usr/bin/oweecapture"); self.assertIn("./usr/share/applications/oweecapture.desktop", lista)
+            self.assertIn("./usr/share/oweecapture/locales/es.json" if os.path.exists(os.path.join(raiz, "locales", "es.json")) else "./usr/share/oweecapture/locales/en.json", lista); self.assertIn("./usr/lib/python3/dist-packages/oweecapture/qtapp.py", lista)
+            self.assertNotIn("__pycache__", lista); self.assertNotIn("tests/", lista)
+        finally:
+            if os.path.exists(deb): os.remove(deb)
+        self.assertNotEqual(subprocess.run([os.path.join(raiz, "packaging", "crear_deb.sh"), "no valida!"], capture_output=True, cwd=raiz).returncode, 0)          # una versión inválida se rechaza
+
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_recorta_los_ultimos_segundos_con_su_audio(self):

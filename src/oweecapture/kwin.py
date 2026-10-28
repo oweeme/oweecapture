@@ -9,8 +9,15 @@ _cargados = []
 def _kwin(ruta, interfaz):
     return QDBusInterface("org.kde.KWin", ruta, interfaz, QDBusConnection.sessionBus())
 
+def _entero(respuesta):
+    """El identificador de script que devuelve KWin, o -1 si la llamada falló (entonces el primer argumento es un texto de error)."""
+    a = respuesta.arguments()
+    return a[0] if a and isinstance(a[0], int) else -1
+
 def disponible():
-    return QDBusConnection.sessionBus().interface().isServiceRegistered("org.kde.KWin")
+    bus = QDBusConnection.sessionBus()
+    if not bus.isConnected(): return False
+    return bool(bus.interface().isServiceRegistered("org.kde.KWin").value())          # .value(): la respuesta de D-Bus es un objeto que siempre sería «verdadero» (en GNOME o Deepin diría que hay KWin)
 
 def mantener_encima(titulos):
     """Deja siempre encima, sin marco y fuera de la barra de tareas las ventanas cuyo título esté en `titulos`. Devuelve True si KWin cargó el script."""
@@ -20,7 +27,7 @@ def mantener_encima(titulos):
         f.write(f"const titulos = {json.dumps(titulos)};\n"
                 "function preparar(w) { if (titulos.indexOf(w.caption) < 0) return; w.keepAbove = true; w.skipTaskbar = true; w.skipPager = true; w.skipSwitcher = true; w.noBorder = true; }\n"
                 "workspace.windowList().forEach(preparar); workspace.windowAdded.connect(preparar);\n")
-    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = r.arguments()[0] if r.arguments() else -1
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = _entero(r)
     if ident < 0: return False
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _cargados.append(nombre); return True
 
@@ -41,7 +48,7 @@ def listar_ventanas(al_listo):
                 "  if (w.desktops.length > 0 && w.desktops.indexOf(workspace.currentDesktop) < 0) return;\n"
                 "  var g = w.frameGeometry; l.push({c: w.caption, x: Math.round(g.x), y: Math.round(g.y), w: Math.round(g.width), h: Math.round(g.height)});\n});\n"
                 "callDBus(\"org.oweecapture.App\", \"/org/oweecapture/App\", \"org.oweecapture.App\", \"RecibirVentanas\", JSON.stringify(l));\n")
-    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = r.arguments()[0] if r.arguments() else -1
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = _entero(r)
     if ident < 0: recibir_ventanas("[]"); return
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run")
     QTimer.singleShot(1000, lambda: (recibir_ventanas("[]"), _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", nombre)))
@@ -69,7 +76,7 @@ def seguir_cursor():
     ruta = os.path.join(carpeta, "cursor.qml")      # KWin guarda el QML en caché por ruta: una carpeta por versión del texto evita que se use una copia vieja
     if not os.path.exists(ruta): open(ruta, "w").write(_QML)
     muestras.clear(); _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR)
-    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadDeclarativeScript", ruta, _NOMBRE_CURSOR); ident = r.arguments()[0] if r.arguments() else -1
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadDeclarativeScript", ruta, _NOMBRE_CURSOR); ident = _entero(r)
     if ident < 0: _usos[0] -= 1; return False
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _siguiendo[0] = True; return True
 

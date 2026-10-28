@@ -6,6 +6,13 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 
 **Estado:** versión 0.1, extraída de la «Capturadora» de OweeLinux. Hoy funciona en compositores basados en wlroots (labwc, sway, Hyprland, River…). El plan para llegar a GNOME y KDE está en [PLAN.md](PLAN.md).
 
+## Instalar
+**Debian, Ubuntu, KDE neon, Mint y derivadas (Wayland):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb` (apt instala también las dependencias). Se construye con `packaging/crear_deb.sh` y GitHub Actions lo publica al crear una etiqueta `vX.Y.Z` (`.github/workflows/`: las pruebas corren en cada subida).
+
+**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp` (dependencias abajo).
+
+**Windows: todavía no hay instalador, y no se puede fingir uno.** OweeCapture depende del portal de pantalla de Linux (xdg-desktop-portal + PipeWire), de GStreamer y de D-Bus. Portarlo a Windows exige escribir otra captura (ffmpeg `ddagrab`/`gdigrab`), el audio del sistema (WASAPI), los atajos globales (`RegisterHotKey`) y probarlo en un Windows real: es el hito M5b del [plan](PLAN.md). Un instalador sin eso se abriría y no grabaría nada.
+
 ## Qué hace hoy (interfaz Qt, probada en KDE neon con Plasma 6 en Wayland)
 
 **Atajos desde que arranca el escritorio:** activa «Iniciar OweeCapture al abrir la sesión» (pestaña *Grabar*, bloque *Al iniciar sesión*): crea `~/.config/autostart/oweecapture.desktop`, que arranca la aplicación en segundo plano (solo el icono de la bandeja y los atajos) y así `Ctrl+Alt+R`, `Ctrl+Alt+S`, etc. responden desde el primer momento, sin abrir la ventana. Si prefieres no tenerla siempre en marcha, el lanzador trae acciones (*Take a screenshot*, *Start or stop recording*, *Presentation mode*) a las que puedes asignar un atajo en los ajustes de tu escritorio: lanzan la aplicación si no está abierta.

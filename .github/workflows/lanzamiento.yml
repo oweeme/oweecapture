@@ -1,0 +1,41 @@
+name: Lanzamiento
+
+# Se ejecuta al crear una etiqueta de versión (git tag v0.2.0 && git push --tags): pasa las pruebas, construye el .deb
+# y el código fuente, y publica todo en una «release» de GitHub con sumas de verificación.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    uses: ./.github/workflows/ci.yml
+
+  publicar:
+    name: Publicar la versión
+    needs: pruebas
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write          # crear la release y subir los archivos
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versión (sin la «v» de la etiqueta)
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Construir el .deb y el código fuente
+        run: |
+          ./packaging/crear_deb.sh "$VERSION"
+          git archive --format=tar.gz --prefix="oweecapture-$VERSION/" -o "dist/oweecapture-$VERSION-fuente.tar.gz" HEAD
+          cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+
+      - name: Crear la release
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "OweeCapture $VERSION" \
+            --generate-notes \
+            --notes "Instalación en Debian, Ubuntu, KDE neon y derivadas: \`sudo apt install ./oweecapture_${VERSION}_all.deb\`. Solo Linux con Wayland; Windows todavía no está soportado."

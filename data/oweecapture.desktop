@@ -7,7 +7,7 @@ Exec=oweecapture
 Icon=oweecapture
 Terminal=false
 StartupWMClass=oweecapture
-Categories=AudioVideo;Recorder;Utility;
+Categories=AudioVideo;Recorder;
 Keywords=screenshot;screen;record;capture;video;
 Actions=Shot;Record;Present;
 
