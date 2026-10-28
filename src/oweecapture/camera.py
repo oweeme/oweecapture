@@ -10,7 +10,7 @@ try:
 except Exception: HAVE_GST = False
 
 SIZES = [120, 180, 240, 320]
-STATE = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "screencapture", "camera.json")      # posición y tamaño que se recuerdan entre usos
+STATE = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "oweecapture", "camera.json")      # posición y tamaño que se recuerdan entre usos
 
 def load_state():
     try:
@@ -28,7 +28,7 @@ def available():
 class Bubble(Gtk.Window):
     def __init__(self, app):
         super().__init__(application=app, decorated=False); self.add_css_class("sc-cam"); self.mx, self.my, self.size = load_state()
-        LS.init_for_window(self); LS.set_layer(self, LS.Layer.OVERLAY); LS.set_namespace(self, "screencapture-camera"); LS.set_keyboard_mode(self, LS.KeyboardMode.NONE)
+        LS.init_for_window(self); LS.set_layer(self, LS.Layer.OVERLAY); LS.set_namespace(self, "oweecapture-camera"); LS.set_keyboard_mode(self, LS.KeyboardMode.NONE)
         LS.set_anchor(self, LS.Edge.BOTTOM, True); LS.set_anchor(self, LS.Edge.LEFT, True); self.apply_margins()
         prov = Gtk.CssProvider(); prov.load_from_string("window.sc-cam { background: transparent; } .camwrap { border-radius: 999px; border: 3px solid #2A9D8F; background: #102019; }"); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
         src = "videotestsrc is-live=true pattern=ball" if os.environ.get("OWEE_CAM_TEST") else "v4l2src"

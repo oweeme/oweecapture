@@ -44,7 +44,7 @@ class Editor(Gtk.ApplicationWindow):
         self.set_tool("pen"); self.set_color(COLORS[0]); self.set_default_size(min(self.w + 40, 1180), min(self.h + 120, 820)); self.msg(f"{self.w}×{self.h}")
 
     def msg(self, t): self.status.set_text(t)
-    def toast(self, title, body, icon="screencapture"):
+    def toast(self, title, body, icon="oweecapture"):
         """Aviso en pantalla (mako): así se sabe al instante que la captura se guardó o se copió, sin mirar la barra de abajo ni la carpeta."""
         try: subprocess.Popen(["notify-send", "-i", icon, title, body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except OSError: pass
@@ -154,6 +154,6 @@ class Editor(Gtk.ApplicationWindow):
             self.render(f); self.path = f; self.msg("✓ " + _("Guardado: ") + f); self.toast(_("Captura guardada"), f, f)
         dlg.save(self, None, done)
     def copy(self):
-        tmp = os.path.join("/tmp", f"screencapture-copy-{os.getpid()}.png"); self.render(tmp); ok = core.copy_image(tmp); os.remove(tmp); self.msg(_("Copiada al portapapeles") if ok else _("Falta wl-copy")); self.toast(_("Copiada al portapapeles"), "", "edit-copy") if ok else None
+        tmp = os.path.join("/tmp", f"oweecapture-copy-{os.getpid()}.png"); self.render(tmp); ok = core.copy_image(tmp); os.remove(tmp); self.msg(_("Copiada al portapapeles") if ok else _("Falta wl-copy")); self.toast(_("Copiada al portapapeles"), "", "edit-copy") if ok else None
 
 def open_editor(app, path): w = Editor(app, path); w.present(); return w

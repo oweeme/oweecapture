@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "screencapture"
+name = "oweecapture"
 version = "0.1.0"
 description = "Screenshots with an annotation editor, screen recording with audio and webcam, and a presentation drawing mode (Wayland)"
 readme = "README.md"
@@ -17,7 +17,7 @@ Homepage = "https://oweeme.com"
 dependencies = []
 
 [project.scripts]
-screencapture = "screencapture.qtapp:main"
+oweecapture = "oweecapture.qtapp:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

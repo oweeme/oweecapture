@@ -115,7 +115,7 @@ class Grabador:
         self._peticion(self.sc.CreateSession, opciones={"session_handle_token": f"s{os.getpid()}"}, fallo=f, siguiente=self._elegir)
 
     def _registrar(self, texto):
-        """Deja el detalle técnico de un fallo en ~/.cache/screencapture/error.log (el aviso de la ventana es corto)."""
+        """Deja el detalle técnico de un fallo en ~/.cache/oweecapture/error.log (el aviso de la ventana es corto)."""
         try:
             os.makedirs(os.path.dirname(LOG), exist_ok=True); open(LOG, "a").write(f"{time.strftime('%F %T')} {self._ocultar(texto)}\n")
         except OSError: pass

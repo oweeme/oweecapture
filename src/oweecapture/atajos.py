@@ -1,5 +1,5 @@
 """Atajos globales (Ctrl+Alt+R grabar o detener, Ctrl+Alt+S captura, Ctrl+Alt+P pausar o continuar, Ctrl+Alt+D modo presentación, Ctrl+Alt+Z zoom, Ctrl+Alt+G clip de los últimos segundos) por el portal GlobalShortcuts: KDE 6 y GNOME con el mismo código. Se emite `activado("grabar" | "captura")`.
-Dos cosas que se descubrieron en KDE neon (Plasma 6.8): el portal solo atiende a una aplicación con identificador propio y un `.desktop` instalado (screencapture.desktop), y KDE deja la tecla preferida como
+Dos cosas que se descubrieron en KDE neon (Plasma 6.8): el portal solo atiende a una aplicación con identificador propio y un `.desktop` instalado (oweecapture.desktop), y KDE deja la tecla preferida como
 «ninguna»; hay que asignarla con `kglobalaccel` (pieza específica de KDE, solo si el atajo aún no tiene tecla: no se pisa lo que el usuario cambie en Ajustes)."""
 import os
 import dbus, dbus.mainloop.glib
@@ -43,6 +43,6 @@ class Atajos(QObject):
         try:
             ga = dbus.Interface(self.bus.get_object("org.kde.kglobalaccel", "/kglobalaccel"), "org.kde.KGlobalAccel")
             for ident, desc, _t, tecla in ATAJOS:
-                aid = dbus.Array(["screencapture", ident, "Screencapture", desc], signature="s")
+                aid = dbus.Array(["oweecapture", ident, "OweeCapture", desc], signature="s")
                 if not [k for k in ga.shortcut(aid) if int(k)]: ga.setForeignShortcut(aid, dbus.Array([tecla], signature="i"))
         except dbus.DBusException: pass                                  # no es KDE: el escritorio muestra su propio diálogo de atajos

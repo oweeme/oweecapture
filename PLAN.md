@@ -1,4 +1,4 @@
-# Plan de Screencapture
+# Plan de OweeCapture
 
 Documento de planificación. Fecha: 26 de octubre de 2026. Autor del proyecto: Hector Martinez. Licencia prevista: GPL-3.0-or-later.
 Las decisiones de lenguaje y biblioteca gráfica están razonadas en [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md). **Decisión vigente (26 oct): Python con Qt6 (PySide6)** — el autor usa KDE y Qt encaja con KDE y Deepin y se empaqueta bien en Windows; GNOME lo ejecuta sin problema, con el núcleo aislado y backends intercambiables (wlroots, portal+PipeWire, X11 y Windows vía FFmpeg); Rust se decide con mediciones; Qt o GTK4 se decide antes de crecer la interfaz. Las estimaciones de tiempo son orientativas (una persona, tiempo parcial) y se revisan al terminar cada hito.
@@ -11,7 +11,7 @@ Una grabadora y capturadora de pantalla para Linux que **cualquiera pueda usar s
 **Qué la distingue** (a verificar con una comparación real en el hito M0.5): vídeos pequeños con un solo selector de calidad, recuperación de grabaciones cortadas, modo presentación para dibujar, y funcionamiento fluido en equipos de 4 a 16 GB. Interfaz en 19 idiomas desde el principio (ya traducida).
 
 ## 2. Punto de partida (lo que ya existe)
-Código extraído de la «Capturadora» de OweeLinux: `src/screencapture/` (≈840 líneas de Python con GTK4), 91 textos traducidos a 19 idiomas en `locales/`, 9 pruebas sin interfaz.
+Código extraído de la «Capturadora» de OweeLinux: `src/oweecapture/` (≈840 líneas de Python con GTK4), 91 textos traducidos a 19 idiomas en `locales/`, 9 pruebas sin interfaz.
 
 | Función | Cómo se hace hoy | Límite |
 |---|---|---|
@@ -42,8 +42,8 @@ Código extraído de la «Capturadora» de OweeLinux: `src/screencapture/` (≈8
                          │ ventana principal · barra de control · editor      │
                          │ burbuja de cámara · superposición de dibujo        │
                          └───────────────▲──────────────────────────────────┘
-                                         │ D-Bus (org.screencapture.Service)
-┌──────────────── screencapture-core (servicio + biblioteca) ─────────────────────────────┐
+                                         │ D-Bus (org.oweecapture.Service)
+┌──────────────── oweecapture-core (servicio + biblioteca) ─────────────────────────────┐
 │ Capture        Encoder          Audio             Camera          Storage / Recovery    │
 │  · portal+PipeWire  · GStreamer     · PipeWire         · PipeWire       · segmentos MKV     │
 │    (GNOME, KDE,      (x264, VA-API,   (sistema + mic,    / v4l2          · reanudar tras    │
@@ -55,7 +55,7 @@ Código extraído de la «Capturadora» de OweeLinux: `src/screencapture/` (≈8
         integraciones opcionales: atajos globales (portal GlobalShortcuts), notificaciones, paneles
 ```
 Principios:
-- **El núcleo no sabe de ventanas.** Se controla por D-Bus y línea de órdenes (`screencapture-ctl start|stop|pause|status`), así lo usan la interfaz, los atajos y cualquier panel.
+- **El núcleo no sabe de ventanas.** Se controla por D-Bus y línea de órdenes (`oweecapture-ctl start|stop|pause|status`), así lo usan la interfaz, los atajos y cualquier panel.
 - **Grabar en segmentos** (Matroska o MP4 fragmentado): si todo se cae, el archivo hasta ese instante es válido.
 - **Todo proceso externo con tiempo límite y nunca en el hilo de la interfaz** (ya se hace hoy).
 - **Ninguna telemetría.** No se envía nada a ningún sitio.
@@ -105,7 +105,7 @@ Backend FFmpeg (`ddagrab`/`gdigrab`), interfaz probablemente con Qt (PySide6) y 
 Paquetes **Flatpak (Flathub)**, `.deb` y AppImage; página web y documentación; CI en GitHub Actions (pruebas y empaquetado); versión 1.0.
 
 ### M7 — Núcleo en Rust (solo si las mediciones lo piden; 8–12 semanas)
-Pasar el núcleo a un *crate* `screencapture-core` (`gstreamer-rs`, `pipewire-rs`, `ashpd`) y, si compensa, la interfaz a `gtk4-rs` + libadwaita. Se hace **después** de M2, cuando la arquitectura ya está probada.
+Pasar el núcleo a un *crate* `oweecapture-core` (`gstreamer-rs`, `pipewire-rs`, `ashpd`) y, si compensa, la interfaz a `gtk4-rs` + libadwaita. Se hace **después** de M2, cuando la arquitectura ya está probada.
 
 ## 6. Cómo se prueba
 - **Unitarias** (sin interfaz): tabla de calidades, mezcla, nombres de archivo, traducciones, recuperación.
@@ -132,13 +132,13 @@ Pasar el núcleo a un *crate* `screencapture-core` (`gstreamer-rs`, `pipewire-rs
 | Patentes de H.264/AAC | ofrecer VP9/Opus y AV1 libres; H.264 por defecto por compatibilidad |
 | Controladores de GPU (NVIDIA, AMD antiguos) | vuelta automática a x264 por CPU |
 | Alcance (directos, avatar, editor de vídeo) | cerrar M1–M3 antes; M5 solo si hay hueco |
-| Nombre `screencapture` | no hay paquete de Debian con ese nombre; en macOS existe una orden del sistema con ese nombre (no afecta a Linux); revisar antes de publicar |
+| Nombre `oweecapture` | no hay paquete de Debian con ese nombre; en macOS existe una orden del sistema con ese nombre (no afecta a Linux); revisar antes de publicar |
 
 ## 9. Estructura del repositorio
 ```
-screencapture/
+oweecapture/
   PLAN.md  README.md  LICENSE  pyproject.toml
-  src/screencapture/   core.py  app.py  editor.py  overlay.py  camera.py  i18n.py
+  src/oweecapture/   core.py  app.py  editor.py  overlay.py  camera.py  i18n.py
   locales/             19 idiomas (JSON: español → traducción)
   data/                icono y archivo .desktop
   tests/               pruebas

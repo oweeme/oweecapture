@@ -15,7 +15,7 @@ def disponible():
 def mantener_encima(titulos):
     """Deja siempre encima, sin marco y fuera de la barra de tareas las ventanas cuyo título esté en `titulos`. Devuelve True si KWin cargó el script."""
     if not disponible(): return False
-    nombre = f"screencapture-encima-{os.getpid()}-{len(_cargados)}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
+    nombre = f"oweecapture-encima-{os.getpid()}-{len(_cargados)}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
     with open(ruta, "w") as f:
         f.write(f"const titulos = {json.dumps(titulos)};\n"
                 "function preparar(w) { if (titulos.indexOf(w.caption) < 0) return; w.keepAbove = true; w.skipTaskbar = true; w.skipPager = true; w.skipSwitcher = true; w.noBorder = true; }\n"
@@ -34,13 +34,13 @@ def listar_ventanas(al_listo):
     """Pide a KWin las ventanas normales visibles (de abajo arriba): `al_listo([{"c": título, "x", "y", "w", "h"}, …])`. KWin responde llamando a `RecibirVentanas` del servicio D-Bus de la aplicación.
     Sin KWin (o si no responde en 1 s) la lista llega vacía y el selector solo ofrece zona o pantalla completa."""
     if not disponible(): al_listo([]); return
-    _pendiente[0] = al_listo; _n_lista[0] += 1; nombre = f"screencapture-ventanas-{os.getpid()}-{_n_lista[0]}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
+    _pendiente[0] = al_listo; _n_lista[0] += 1; nombre = f"oweecapture-ventanas-{os.getpid()}-{_n_lista[0]}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
     with open(ruta, "w") as f:
         f.write("var l = [];\nworkspace.stackingOrder.forEach(function (w) {\n"
-                "  if (!w.normalWindow || w.minimized || w.caption.indexOf(\"Screencapture\") === 0) return;\n"
+                "  if (!w.normalWindow || w.minimized || w.caption.indexOf(\"OweeCapture\") === 0) return;\n"
                 "  if (w.desktops.length > 0 && w.desktops.indexOf(workspace.currentDesktop) < 0) return;\n"
                 "  var g = w.frameGeometry; l.push({c: w.caption, x: Math.round(g.x), y: Math.round(g.y), w: Math.round(g.width), h: Math.round(g.height)});\n});\n"
-                "callDBus(\"org.screencapture.App\", \"/org/screencapture/App\", \"org.screencapture.App\", \"RecibirVentanas\", JSON.stringify(l));\n")
+                "callDBus(\"org.oweecapture.App\", \"/org/oweecapture/App\", \"org.oweecapture.App\", \"RecibirVentanas\", JSON.stringify(l));\n")
     r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = r.arguments()[0] if r.arguments() else -1
     if ident < 0: recibir_ventanas("[]"); return
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run")
@@ -55,16 +55,16 @@ def recibir_ventanas(texto):
 
 # --- seguimiento del cursor (para el zoom y el halo): en Wayland un programa no puede leer el puntero fuera de sus ventanas, pero KWin sí; un script QML lo lee unas 30 veces por segundo y lo envía por lotes ---
 _QML = ("import QtQuick\nimport org.kde.kwin\nItem {\n    property var lote: []\n"
-        "    DBusCall { id: envio; service: \"org.screencapture.App\"; path: \"/org/screencapture/App\"; dbusInterface: \"org.screencapture.App\"; method: \"RecibirCursor\" }\n"
+        "    DBusCall { id: envio; service: \"org.oweecapture.App\"; path: \"/org/oweecapture/App\"; dbusInterface: \"org.oweecapture.App\"; method: \"RecibirCursor\" }\n"
         "    Timer { interval: 33; repeat: true; running: true; onTriggered: { var p = Workspace.cursorPos; lote.push([Date.now(), Math.round(p.x), Math.round(p.y)]);\n"
         "        if (lote.length >= 6) { envio.arguments = [JSON.stringify(lote)]; envio.call(); lote = []; } } }\n}\n")
-_NOMBRE_CURSOR = "screencapture-cursor"; muestras = []; _siguiendo = [False]
+_NOMBRE_CURSOR = "oweecapture-cursor"; muestras = []; _siguiendo = [False]
 
 def seguir_cursor():
     """Empieza a reunir las posiciones del cursor en `muestras` ([hora en ms, x, y]). Devuelve False si no hay KWin (el zoom y el halo no están disponibles en otros escritorios)."""
     if not disponible(): return False
     if _siguiendo[0]: return True
-    carpeta = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache")), "screencapture", "kwin", format(zlib.crc32(_QML.encode()), "08x")); os.makedirs(carpeta, exist_ok=True)
+    carpeta = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache")), "oweecapture", "kwin", format(zlib.crc32(_QML.encode()), "08x")); os.makedirs(carpeta, exist_ok=True)
     ruta = os.path.join(carpeta, "cursor.qml")      # KWin guarda el QML en caché por ruta: una carpeta por versión del texto evita que se use una copia vieja
     if not os.path.exists(ruta): open(ruta, "w").write(_QML)
     muestras.clear(); _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR)

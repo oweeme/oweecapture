@@ -1,9 +1,9 @@
-"""Traducciones de Screencapture: `_("texto en español")` devuelve el texto en el idioma del sistema (LANGUAGE / LC_ALL / LANG). El español del código es el original; cada idioma tiene
+"""Traducciones de OweeCapture: `_("texto en español")` devuelve el texto en el idioma del sistema (LANGUAGE / LC_ALL / LANG). El español del código es el original; cada idioma tiene
 un catálogo `locales/<código>.json` {"español": "traducción"}. Si falta un texto o un idioma se muestra el español (nunca falla). Los marcadores {0}, {1}… se rellenan con los argumentos extra."""
 import json, os
 
 _DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locales")
-for _alt in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "locales"), "/usr/share/screencapture/locales"):
+for _alt in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "locales"), "/usr/share/oweecapture/locales"):
     if not os.path.isdir(_DIR) and os.path.isdir(_alt): _DIR = _alt
 
 def _lang():

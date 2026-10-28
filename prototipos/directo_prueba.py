@@ -1,9 +1,9 @@
 """Prototipo de directo: captura de pantalla por el portal (como la grabación) → H.264 (x264 o VA-API) + AAC → FLV → RTMP, hacia un receptor local. Mide la CPU del proceso y lo que llegó al receptor.
-Uso (con la identidad «screencapture» para que el portal recuerde la pantalla): systemd-run --user --scope --unit=app-screencapture-prueba python3 prototipos/directo_prueba.py x264|vaapi SEGUNDOS KBPS"""
+Uso (con la identidad «oweecapture» para que el portal recuerde la pantalla): systemd-run --user --scope --unit=app-oweecapture-prueba python3 prototipos/directo_prueba.py x264|vaapi SEGUNDOS KBPS"""
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from gi.repository import GLib
-from screencapture import portal
+from oweecapture import portal
 
 encoder, segundos, kbps = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]); URL = "rtmp://127.0.0.1:1935/live/prueba"
 CODIF = {"x264": f"x264enc tune=zerolatency speed-preset=veryfast bitrate={kbps} key-int-max=60 ! video/x-raw,format=I420 ! x264enc",

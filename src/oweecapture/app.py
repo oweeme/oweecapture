@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Screencapture: capturas de pantalla (con editor de anotaciones), grabación de vídeo (con audio del sistema y micrófono, y burbuja de cámara web) y modo
+"""OweeCapture: capturas de pantalla (con editor de anotaciones), grabación de vídeo (con audio del sistema y micrófono, y burbuja de cámara web) y modo
 presentación para dibujar sobre la pantalla. Reemplaza a Spectacle. Python + GTK4; las herramientas de fondo son grim, slurp, wf-recorder, pw-record y ffmpeg.
-Uso:  screencapture                      ventana principal
-      screencapture --shot [full|region] captura inmediata y abre el editor        --record [full|region]   empieza a grabar (de nuevo = parar)
-      screencapture --present            modo presentación                            --camera                 burbuja de cámara"""
+Uso:  oweecapture                      ventana principal
+      oweecapture --shot [full|region] captura inmediata y abre el editor        --record [full|region]   empieza a grabar (de nuevo = parar)
+      oweecapture --present            modo presentación                            --camera                 burbuja de cámara"""
 import os, sys, time, subprocess
 _LS = "/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0"                                      # layer-shell antes que libwayland (necesario con Python)
 if "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", "") and os.path.exists(_LS):
-    os.environ["LD_PRELOAD"] = (_LS + " " + os.environ.get("LD_PRELOAD", "")).strip(); os.execv(sys.executable, [sys.executable, "-m", "screencapture"] + sys.argv[1:])      # se relanza como módulo (así funcionan las importaciones del paquete)
+    os.environ["LD_PRELOAD"] = (_LS + " " + os.environ.get("LD_PRELOAD", "")).strip(); os.execv(sys.executable, [sys.executable, "-m", "oweecapture"] + sys.argv[1:])      # se relanza como módulo (así funcionan las importaciones del paquete)
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, Gio, GLib, Gtk4LayerShell as LS
@@ -39,12 +39,12 @@ def colors():
 
 class App(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="org.screencapture.App", flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        super().__init__(application_id="org.oweecapture.App", flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.cfg = core.load_cfg(); self.rec = core.Recorder(); self.win = None; self.pill = None; self.cam = None; self.pres = None; self.tick_id = 0
         for name, fn in (("stop", lambda *a: self.stop_recording()), ("present", lambda *a: self.present_mode()), ("camera", lambda *a: self.toggle_camera())):
-            act = Gio.SimpleAction.new(name, None); act.connect("activate", fn); self.add_action(act)     # el panel controla la grabación con `gapplication action org.screencapture.App stop|present|camera`
+            act = Gio.SimpleAction.new(name, None); act.connect("activate", fn); self.add_action(act)     # el panel controla la grabación con `gapplication action org.oweecapture.App stop|present|camera`
 
-    STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "screencapture-recording")
+    STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "oweecapture-recording")
     @staticmethod
     def panel_present():
         """¿Hay un panel de OweeLinux que pueda mostrar los controles de grabación? (dueño del nombre org.oweelinux.PanelPrototype en el bus de sesión)"""
@@ -95,7 +95,7 @@ class App(Gtk.Application):
     def show_main(self):
         if self.win: self.win.present(); return
         if not self.rec.running and core.leftovers(): self.recover_orphans()      # una grabación anterior se cortó de golpe: se guarda lo que quedó
-        w = self.win = Gtk.ApplicationWindow(application=self, title=_("Capturadora"), icon_name="screencapture", default_width=480, default_height=560); w.add_css_class("cap")
+        w = self.win = Gtk.ApplicationWindow(application=self, title=_("Capturadora"), icon_name="oweecapture", default_width=480, default_height=560); w.add_css_class("cap")
         w.connect("close-request", lambda x: (setattr(self, "win", None), GLib.idle_add(self.quit_if_idle), False)[2])
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_top=16, margin_bottom=16, margin_start=18, margin_end=18); w.set_child(root)
         root.append(Gtk.Label(label=_("Capturadora"), xalign=0, css_classes=["title"]))
@@ -262,7 +262,7 @@ class App(Gtk.Application):
         core.run_async(self.rec.stop, done)
 
     def notify(self, title, body):
-        try: subprocess.Popen(["notify-send", "-i", "screencapture", title, body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try: subprocess.Popen(["notify-send", "-i", "oweecapture", title, body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except OSError: pass
 
     # --- extras

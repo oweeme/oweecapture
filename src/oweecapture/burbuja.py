@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QApplication, QWidget
 
-TITULO = "Screencapture — burbuja de cámara"
+TITULO = "OweeCapture — burbuja de cámara"
 TAMANOS = [120, 180, 240, 320]
 FORMAS = [("circulo", "Círculo"), ("cuadrado", "Cuadrado redondeado")]
 BORDES = [("#2A9D8F", "Verde azulado"), ("#FFFFFF", "Blanco"), ("#E63946", "Rojo"), ("#2A7FFF", "Azul"), ("#FFD60A", "Amarillo"), ("", "Sin borde")]

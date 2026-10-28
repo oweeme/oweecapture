@@ -5,7 +5,7 @@ from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QRegion
 from PySide6.QtWidgets import QWidget
 
-TITULO = "Screencapture — marco"
+TITULO = "OweeCapture — marco"
 GROSOR = 4; COLOR = QColor("#FFD60A"); ASA = (150, 24)          # tamaño del asa (ancho, alto)
 TEXTO = "⠿ arrastra para mover"
 

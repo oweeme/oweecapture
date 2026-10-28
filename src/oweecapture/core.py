@@ -1,4 +1,4 @@
-"""Screencapture — núcleo sin interfaz: capturas con grim/slurp y grabación de vídeo con wf-recorder + audio con pw-record (se mezcla con ffmpeg).
+"""OweeCapture — núcleo sin interfaz: capturas con grim/slurp y grabación de vídeo con wf-recorder + audio con pw-record (se mezcla con ffmpeg).
 Todas las órdenes son procesos externos con tiempo límite; ninguna se espera en el hilo de la interfaz (el llamador usa `run_async`)."""
 import datetime, json, os, shutil, signal, subprocess, threading, time
 from .i18n import _
@@ -11,7 +11,15 @@ def dirs():
     from gi.repository import GLib
     return (os.path.join(_dir(GLib.UserDirectory.DIRECTORY_PICTURES, "Pictures"), "Screenshots"), os.path.join(_dir(GLib.UserDirectory.DIRECTORY_VIDEOS, "Videos"), "Screen Recordings"))
 DIR_IMG, DIR_VID = dirs()
-CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "screencapture", "config.json")
+CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")), "oweecapture", "config.json")
+
+def _migrar_configuracion():
+    """Las versiones anteriores se llamaban «screencapture»: la primera vez se COPIA su configuración (ajustes, elección de pantalla del portal) a la carpeta nueva; la vieja no se toca."""
+    base = os.path.dirname(os.path.dirname(CFG)); viejo = os.path.join(base, "screencapture"); nuevo = os.path.dirname(CFG)
+    try:
+        if os.path.isdir(viejo) and not os.path.exists(nuevo): shutil.copytree(viejo, nuevo)
+    except OSError: pass
+_migrar_configuracion()
 DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False, "vol_sistema": 100, "vol_mic": 100, "ruido": 0,
             "clip_seg": 30, "formato": "libre", "directo_plataforma": "youtube", "directo_url": "", "directo_clave": "", "directo_recordar": False, "directo_calidad": "720",
             "cam_forma": "circulo", "cam_borde": "#2A9D8F", "cam_espejo": False, "cam_brillo": 0, "cam_contraste": 100, "cam_fondo": ""}
@@ -32,7 +40,7 @@ def stamp(): return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 def have(p): return shutil.which(p) is not None
 
 # Temporales de grabación: en el disco (no en /tmp, que es memoria RAM: una grabación larga se comería la memoria del equipo)
-CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "screencapture", "rec")
+CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "oweecapture", "rec")
 # Perfiles por destino: (preset y crf al grabar, reducción posterior). Al grabar se usa poca CPU y al terminar, en segundo plano y con prioridad baja, se reduce el archivo si el perfil lo pide.
 # WhatsApp / Telegram: se graba con calidad alta (crf 20) y se reduce a 720p con crf 23 y escalado lanczos (texto nítido; medido: bajar de crf 27 a 23 sube el SSIM de 0,9927 a 0,9951 por un 36 % más de tamaño).
 # YouTube: se graba directo con buena compresión y sin reducir (recomprimir después pesaba más). Máxima: casi sin pérdidas, para editar y aplicar efectos (se recomienda 60 fotogramas).
@@ -89,8 +97,8 @@ def reduce_in_background(path, q, max_mb=0):
               'if command -v ionice >/dev/null 2>&1; then nice -n 15 ionice -c3 "$@" >/dev/null 2>&1; else nice -n 15 "$@" >/dev/null 2>&1; fi || { rm -f "$tmp"; exit 1; }\n'
               'before=$(stat -c %s "$in"); after=$(stat -c %s "$tmp")\n'
               'if [ "$after" -gt 0 ] && [ "$after" -lt "$before" ]; then mv -f "$tmp" "$in"; else rm -f "$tmp"; after=$before; fi\n'
-              'notify-send -i screencapture "$title" "$((before / 1048576)) MB → $((after / 1048576)) MB   $in" >/dev/null 2>&1 || true')
-    subprocess.Popen(["sh", "-c", script, "screencapture-reduce", path, tmp, _("Versión reducida lista")] + ff, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+              'notify-send -i oweecapture "$title" "$((before / 1048576)) MB → $((after / 1048576)) MB   $in" >/dev/null 2>&1 || true')
+    subprocess.Popen(["sh", "-c", script, "oweecapture-reduce", path, tmp, _("Versión reducida lista")] + ff, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     return True
 
 def select_region():

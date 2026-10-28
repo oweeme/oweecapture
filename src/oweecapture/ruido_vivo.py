@@ -1,9 +1,9 @@
-"""Reducción de ruido del micrófono EN DIRECTO (en la grabación se hace al guardar, ver audio.py): un micrófono virtual «Screencapture: micrófono sin ruido» creado con el módulo echo-cancel de PipeWire (biblioteca WebRTC de Google), que la aplicación
+"""Reducción de ruido del micrófono EN DIRECTO (en la grabación se hace al guardar, ver audio.py): un micrófono virtual «OweeCapture: micrófono sin ruido» creado con el módulo echo-cancel de PipeWire (biblioteca WebRTC de Google), que la aplicación
 arranca al empezar el directo y cierra al terminar. Vive en un proceso `pipewire -c` propio (hijo de la aplicación: muere con ella) y no toca la configuración de audio del usuario. Medido con ruido rosa: de -43,5 a -62,4 dB (≈19 dB menos).
 Sin interfaz ni GStreamer: solo escribe la configuración y gestiona el proceso."""
 import ctypes, json, os, shutil, signal, subprocess, tempfile, time
 
-NOMBRE = "screencapture_mic_limpio"
+NOMBRE = "oweecapture_mic_limpio"
 MODULO = "/usr/lib/x86_64-linux-gnu/pipewire-0.3/libpipewire-module-echo-cancel.so"
 
 def disponible():
@@ -29,10 +29,10 @@ context.modules = [
       library.name = aec/libspa-aec-webrtc
       monitor.mode = false
       aec.args = {{ webrtc.gain_control = false webrtc.noise_suppression = true webrtc.high_pass_filter = true webrtc.voice_detection = false webrtc.extended_filter = false }}
-      capture.props = {{ node.name = "screencapture.aec.capture" node.passive = true }}
-      source.props = {{ node.name = "{NOMBRE}" node.description = "Screencapture: micrófono sin ruido" }}
-      sink.props = {{ node.name = "screencapture.aec.sink" node.description = "Screencapture: referencia de eco" }}
-      playback.props = {{ node.name = "screencapture.aec.playback" node.passive = true }}
+      capture.props = {{ node.name = "oweecapture.aec.capture" node.passive = true }}
+      source.props = {{ node.name = "{NOMBRE}" node.description = "OweeCapture: micrófono sin ruido" }}
+      sink.props = {{ node.name = "oweecapture.aec.sink" node.description = "OweeCapture: referencia de eco" }}
+      playback.props = {{ node.name = "oweecapture.aec.playback" node.passive = true }}
     }}
   }}
 ]
@@ -54,7 +54,7 @@ class Limpiador:
     def iniciar(self, espera=5.0):
         """Arranca el micrófono virtual y espera a que aparezca. True si está listo; si no, no queda nada en marcha."""
         if self.proc or not disponible(): return False
-        fd, self.conf = tempfile.mkstemp(prefix="screencapture-aec-", suffix=".conf", dir=os.environ.get("XDG_RUNTIME_DIR") or None); os.write(fd, configuracion().encode()); os.close(fd)
+        fd, self.conf = tempfile.mkstemp(prefix="oweecapture-aec-", suffix=".conf", dir=os.environ.get("XDG_RUNTIME_DIR") or None); os.write(fd, configuracion().encode()); os.close(fd)
         self.proc = subprocess.Popen(["pipewire", "-c", self.conf], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=_morir_con_el_padre)
         fin = time.time() + espera
         while time.time() < fin:

@@ -1,9 +1,9 @@
-"""Una sola instancia: la primera que arranca ofrece el servicio D-Bus `org.screencapture.App`; las siguientes (o una orden como `screencapture --shot`) le envían la orden y terminan.
-Sirve también para asignar atajos a mano en cualquier escritorio: `screencapture --shot`, `--record`, `--present`, `--quit`."""
+"""Una sola instancia: la primera que arranca ofrece el servicio D-Bus `org.oweecapture.App`; las siguientes (o una orden como `oweecapture --shot`) le envían la orden y terminan.
+Sirve también para asignar atajos a mano en cualquier escritorio: `oweecapture --shot`, `--record`, `--present`, `--quit`."""
 import dbus, dbus.mainloop.glib, dbus.service
 from . import kwin
 
-NOMBRE = "org.screencapture.App"; RUTA = "/org/screencapture/App"
+NOMBRE = "org.oweecapture.App"; RUTA = "/org/oweecapture/App"
 ORDENES = {"--shot": "Captura", "--record": "Grabar", "--present": "Presentacion", "--quit": "Salir"}       # opción de la línea de órdenes → método
 
 class Servicio(dbus.service.Object):

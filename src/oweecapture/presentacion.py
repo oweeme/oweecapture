@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLineEdit, QToolButton, QWidg
 
 from .i18n import _
 
-T_DIBUJO, T_CONTROLES = "Screencapture — dibujo", "Screencapture — controles"
+T_DIBUJO, T_CONTROLES = "OweeCapture — dibujo", "OweeCapture — controles"
 HERRAMIENTAS = [("lapiz", "Lápiz"), ("resaltador", "Resaltador"), ("flecha", "Flecha"), ("marco", "Marco (rectángulo)"), ("elipse", "Elipse"), ("texto", "Texto")]
 COLORES = ["#E63946", "#FFD60A", "#2A9D8F", "#2A7FFF", "#FFFFFF", "#111111"]
 GROSORES = [3, 6, 10]                          # trazo en píxeles (el resaltador es 4 veces más ancho; el texto sube de 18 a 28 y 42 px)

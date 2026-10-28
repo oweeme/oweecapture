@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QWidget
 
 from .i18n import _
 
-TITULO = "Screencapture — selector"
+TITULO = "OweeCapture — selector"
 VERDE = QColor("#2A9D8F"); MIN = 8      # lado mínimo para que un clic suelto no cuente como zona
 
 class Selector(QWidget):

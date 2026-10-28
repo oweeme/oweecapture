@@ -1,6 +1,6 @@
 """Prototipo: grabar la pantalla por el portal ScreenCast + PipeWire + GStreamer (KDE, GNOME y cualquier escritorio con portal), con audio del sistema y micrófono.
 Uso: python3 prototipos/portal_grabar.py [segundos] [salida.mp4] [--sin-sistema] [--mic]
-La primera vez el portal muestra su diálogo; la elección se recuerda (restore token en ~/.config/screencapture/portal.json) y las siguientes veces no pregunta."""
+La primera vez el portal muestra su diálogo; la elección se recuerda (restore token en ~/.config/oweecapture/portal.json) y las siguientes veces no pregunta."""
 import json, os, sys
 import dbus, dbus.mainloop.glib
 import gi
@@ -11,7 +11,7 @@ args = [a for a in sys.argv[1:] if not a.startswith("--")]
 SEGUNDOS = int(args[0]) if args else 10
 SALIDA = args[1] if len(args) > 1 else "/tmp/portal-prueba.mp4"
 SISTEMA = "--sin-sistema" not in sys.argv; MIC = "--mic" in sys.argv
-TOKEN = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "screencapture", "portal.json")
+TOKEN = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "oweecapture", "portal.json")
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
 bus = dbus.SessionBus(); loop = GLib.MainLoop()
 portal = bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")

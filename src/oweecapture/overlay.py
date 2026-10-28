@@ -12,11 +12,11 @@ COLORS = [("#F06548", "1"), ("#F2C94C", "2"), ("#2A9D8F", "3"), ("#3B82C4", "4")
 
 class Overlay(Gtk.Window):
     def __init__(self, app, on_close=None):
-        super().__init__(application=app, decorated=False); self.on_close = on_close; self.add_css_class("screencapture-presentation")
-        LS.init_for_window(self); LS.set_layer(self, LS.Layer.OVERLAY); LS.set_namespace(self, "screencapture-presentation"); LS.set_keyboard_mode(self, LS.KeyboardMode.EXCLUSIVE); LS.set_exclusive_zone(self, -1)
+        super().__init__(application=app, decorated=False); self.on_close = on_close; self.add_css_class("oweecapture-presentation")
+        LS.init_for_window(self); LS.set_layer(self, LS.Layer.OVERLAY); LS.set_namespace(self, "oweecapture-presentation"); LS.set_keyboard_mode(self, LS.KeyboardMode.EXCLUSIVE); LS.set_exclusive_zone(self, -1)
         for e in (LS.Edge.TOP, LS.Edge.BOTTOM, LS.Edge.LEFT, LS.Edge.RIGHT): LS.set_anchor(self, e, True)
         self.strokes = []; self.cur = None; self.color = COLORS[0][0]; self.tool = "pen"; self.halo = True; self.px = self.py = None; self.ripples = []
-        prov = Gtk.CssProvider(); prov.load_from_string("window.screencapture-presentation, window.screencapture-presentation > * { background: rgba(0,0,0,0.002); } .opbar { background: rgba(16,32,25,0.92); border-radius: 14px; padding: 6px; color: #EFF0F1; } .opbar button { background: #1b3128; color: #EFF0F1; border: none; background-image: none; box-shadow: none; border-radius: 10px; min-width: 0; padding: 4px 10px; } .opbar button.on { background: #2A9D8F; color: #102019; } .opbar button.sw { min-width: 22px; min-height: 22px; padding: 0; border-radius: 999px; border: 2px solid transparent; } .opbar button.sw.on { border-color: #EFF0F1; }")
+        prov = Gtk.CssProvider(); prov.load_from_string("window.oweecapture-presentation, window.oweecapture-presentation > * { background: rgba(0,0,0,0.002); } .opbar { background: rgba(16,32,25,0.92); border-radius: 14px; padding: 6px; color: #EFF0F1; } .opbar button { background: #1b3128; color: #EFF0F1; border: none; background-image: none; box-shadow: none; border-radius: 10px; min-width: 0; padding: 4px 10px; } .opbar button.on { background: #2A9D8F; color: #102019; } .opbar button.sw { min-width: 22px; min-height: 22px; padding: 0; border-radius: 999px; border: 2px solid transparent; } .opbar button.sw.on { border-color: #EFF0F1; }")
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
         ov = Gtk.Overlay(); self.set_child(ov); self.area = Gtk.DrawingArea(hexpand=True, vexpand=True); self.area.set_draw_func(self.draw); ov.set_child(self.area)
         bar = Gtk.Box(spacing=6, halign=Gtk.Align.CENTER, valign=Gtk.Align.END, margin_bottom=22); bar.add_css_class("opbar"); ov.add_overlay(bar); self.btns = {}

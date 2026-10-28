@@ -1,6 +1,6 @@
-"""Ventana principal de Screencapture con Qt6 (PySide6): grabar la pantalla por el portal, burbuja de cámara y modo presentación. Ejecutar: python3 -m screencapture.qtapp"""
+"""Ventana principal de OweeCapture con Qt6 (PySide6): grabar la pantalla por el portal, burbuja de cámara y modo presentación. Ejecutar: python3 -m oweecapture.qtapp"""
 import os, signal, subprocess, sys
-from PySide6.QtCore import QObject, QRect, QTimer, Signal
+from PySide6.QtCore import QObject, QRect, QSize, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGroupBox, QMenu, QScrollArea, QSystemTrayIcon, QTabWidget, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QLineEdit, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
@@ -20,7 +20,7 @@ class Puente(QObject):
 
 class Ventana(QWidget):
     def __init__(self):
-        super().__init__(); self.setWindowTitle("Screencapture"); self.cfg = core.load_cfg(); self.grab = portal.Grabador(); self.burbuja = None; self.dibujo = None
+        super().__init__(); self.setWindowTitle("OweeCapture"); self.setWindowIcon(icono()); self.cfg = core.load_cfg(); self.grab = portal.Grabador(); self.burbuja = None; self.dibujo = None
         self.puente = Puente(); self.puente.terminado.connect(self.al_terminar); self.puente.clip_listo.connect(self.al_clip); lay = QVBoxLayout(self)
         self.calidad = QComboBox(); [self.calidad.addItem(t, k) for k, t in CALIDADES]; self.calidad.setCurrentIndex(max(0, self.calidad.findData(self.cfg["quality"])))
         self.sistema = QCheckBox(_("Audio del sistema")); self.sistema.setChecked(self.cfg["audio_system"]); self.mic = QCheckBox(_("Micrófono")); self.mic.setChecked(self.cfg["audio_mic"])
@@ -55,7 +55,7 @@ class Ventana(QWidget):
         kwin.mantener_encima([burbuja_titulo(), marco.TITULO, presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
         self.tray = bandeja(self)
         self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Atajos no disponibles: ") + m))
-        if not os.environ.get("SCREENCAPTURE_SIN_ATAJOS"): self.atajos.iniciar()          # las pruebas lo desactivan: registrar atajos desde un proceso de prueba los deja en el grupo equivocado de KDE
+        if not os.environ.get("OWEECAPTURE_SIN_ATAJOS"): self.atajos.iniciar()          # las pruebas lo desactivan: registrar atajos desde un proceso de prueba los deja en el grupo equivocado de KDE
 
     def atajo(self, que):
         if que == "captura": self.captura()
@@ -72,8 +72,8 @@ class Ventana(QWidget):
 
     def acerca_de(self):
         """Ventana «Acerca de»: versión, autor, correo, sitio web y licencia (los datos están en autor.py)."""
-        d = QDialog(self); d.setWindowTitle(_("Acerca de Screencapture")); v = QVBoxLayout(d); cab = QHBoxLayout(); logo = QLabel(); logo.setPixmap(icono().pixmap(64, 64)); cab.addWidget(logo)
-        t = QLabel(f"<h2>Screencapture {autor.VERSION}</h2>"); cab.addWidget(t, 1); v.addLayout(cab); desc = QLabel(_(autor.DESCRIPCION)); desc.setWordWrap(True); v.addWidget(desc)
+        d = QDialog(self); d.setWindowTitle(_("Acerca de OweeCapture")); v = QVBoxLayout(d); cab = QHBoxLayout(); logo = QLabel(); logo.setPixmap(icono().pixmap(64, 64)); cab.addWidget(logo)
+        t = QLabel(f"<h2>OweeCapture {autor.VERSION}</h2>"); cab.addWidget(t, 1); v.addLayout(cab); desc = QLabel(_(autor.DESCRIPCION)); desc.setWordWrap(True); v.addWidget(desc)
         info = QLabel(f"<p><b>{_('Autor')}:</b> {autor.NOMBRE}<br><b>{_('Correo')}:</b> <a href='mailto:{autor.EMAIL}'>{autor.EMAIL}</a><br><b>{_('Sitio web')}:</b> <a href='{autor.WEB}'>{autor.WEB}</a><br><b>{_('Licencia')}:</b> {autor.LICENCIA}</p>")
         info.setOpenExternalLinks(True); info.setTextInteractionFlags(Qt.TextBrowserInteraction); v.addWidget(info); b = QPushButton(_("Cerrar")); b.clicked.connect(d.accept); v.addWidget(b); d.setMinimumWidth(420); d.exec()
 
@@ -86,23 +86,23 @@ class Ventana(QWidget):
         """Ctrl+Alt+G mientras se graba o se transmite: guarda aparte los últimos N segundos (los que se hayan elegido) sin parar nada."""
         n = self.clip_seg.currentData()
         if not self.grab.clip(n, lambda ruta, err: self.puente.clip_listo.emit(ruta, err)):
-            if not self.grab.corriendo: self.estado.setText(_("Los clips se guardan mientras grabas o transmites: empieza una grabación primero.")); self.avisar("Screencapture", self.estado.text())
+            if not self.grab.corriendo: self.estado.setText(_("Los clips se guardan mientras grabas o transmites: empieza una grabación primero.")); self.avisar("OweeCapture", self.estado.text())
             else: self.estado.setText(_("No se puede guardar un clip en pausa."))
             return
-        self.avisar("Screencapture", _("Guardando un clip de los últimos {0} s…").replace("{0}", str(n)))
+        self.avisar("OweeCapture", _("Guardando un clip de los últimos {0} s…").replace("{0}", str(n)))
     def al_clip(self, ruta, err):
-        if err: self.estado.setText(err); self.avisar("Screencapture", err); return
+        if err: self.estado.setText(err); self.avisar("OweeCapture", err); return
         self.estado.setText(_("Clip guardado: ") + ruta); self.avisar(_("Clip guardado"), ruta)
 
     def zoom_tecla(self):
         """Ctrl+Alt+Z mientras se graba: acerca (centrado en el cursor) o aleja; el efecto se aplica al terminar la grabación."""
         r = self.grab.alternar_zoom()
         if r is None: self.estado.setText(_("El zoom solo funciona grabando (sin pausa) y con un nivel de zoom elegido.")) if not self.grab.corriendo else None; return
-        texto = _("Zoom: acercado (se aplica al terminar)") if r else _("Zoom: alejado"); self.estado.setText(texto); self.avisar("Screencapture", texto); self.refrescar_bandeja()
+        texto = _("Zoom: acercado (se aplica al terminar)") if r else _("Zoom: alejado"); self.estado.setText(texto); self.avisar("OweeCapture", texto); self.refrescar_bandeja()
 
     def avisar(self, titulo, texto):
         """Aviso del escritorio: con `notify-send` si está instalado y, si no, el globo de la bandeja (así siempre se ve algo)."""
-        if core.have("notify-send"): subprocess.Popen(["notify-send", "-i", "screencapture", titulo, texto], stderr=subprocess.DEVNULL)
+        if core.have("notify-send"): subprocess.Popen(["notify-send", "-i", "oweecapture", titulo, texto], stderr=subprocess.DEVNULL)
         else: self.tray.showMessage(titulo, texto, QSystemTrayIcon.Information, 2500)
 
     def con_selector(self, fondo, al_elegir, vertical=False):
@@ -229,7 +229,7 @@ class Ventana(QWidget):
     def aviso_red(self):
         """En directo, avisa (globo de la bandeja) cuando la conexión se cae y cuando vuelve."""
         e = self.grab.estado_red if self.grab.directo else ""
-        if e != getattr(self, "_red_vista", "") and e.startswith(("Sin conexión", "Conectado (reconexiones")): self.avisar("Screencapture", _(e))
+        if e != getattr(self, "_red_vista", "") and e.startswith(("Sin conexión", "Conectado (reconexiones")): self.avisar("OweeCapture", _(e))
         self._red_vista = e
 
     def cerrar_marco(self):
@@ -247,7 +247,7 @@ class Ventana(QWidget):
     def refrescar_bandeja(self, tiempo=""):
         """El icono de la bandeja muestra el estado (rojo grabando, naranja en pausa) y su menú ofrece detener y pausar sin ventana."""
         g, p = self.grab.corriendo, self.grab.pausada
-        self.tray.setIcon(icono_estado("pausa" if p else "zoom" if self.grab.zoom_activo() else "grabando") if g else icono()); self.tray.setToolTip(("Screencapture — " + (_("En pausa") if p else _("Grabando con zoom") if self.grab.zoom_activo() else _("Grabando")) + " " + tiempo) if g else "Screencapture")
+        self.tray.setIcon(icono_estado("pausa" if p else "zoom" if self.grab.zoom_activo() else "grabando") if g else icono()); self.tray.setToolTip(("OweeCapture — " + (_("En pausa") if p else _("Grabando con zoom") if self.grab.zoom_activo() else _("Grabando")) + " " + tiempo) if g else "OweeCapture")
         self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["clip"].setVisible(g and not p); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
@@ -270,9 +270,14 @@ class Ventana(QWidget):
 def burbuja_titulo(): return burbuja.TITULO
 
 def icono():
-    """Icono del tema si está instalado; si no, el SVG del repositorio."""
-    i = QIcon.fromTheme("screencapture")
-    return i if not i.isNull() else QIcon(os.path.join(os.path.dirname(__file__), "..", "..", "data", "icons", "screencapture.svg"))
+    """El logo de OweeCapture: el del tema si está instalado; si no, los PNG del repositorio (valen aunque Qt no tenga el complemento de SVG) y, por último, el SVG."""
+    i = QIcon.fromTheme("oweecapture")
+    if not i.isNull(): return i
+    carpeta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "icons"); i = QIcon()
+    for n in (16, 24, 32, 48, 64, 128, 256, 512):
+        f = os.path.join(carpeta, f"oweecapture-{n}.png")
+        if os.path.exists(f): i.addFile(f, QSize(n, n))
+    return i if not i.isNull() else QIcon(os.path.join(carpeta, "oweecapture.svg"))
 
 def icono_estado(estado):
     """Círculo rojo (grabando) o naranja con barras (en pausa), dibujado a mano para no depender del tema de iconos."""
@@ -288,7 +293,7 @@ def bandeja(v):
     v.acc["captura"] = m.addAction(_("Captura de pantalla"), v.captura); v.acc["grabar"] = m.addAction(_("Grabar"), v.alternar)
     v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["zoom"] = m.addAction(_("Acercar / alejar (zoom)"), v.zoom_tecla); v.acc["zoom"].setVisible(False); v.acc["clip"] = m.addAction(_("Guardar clip de los últimos segundos"), v.clip_tecla); v.acc["clip"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
     m.addAction(_("Herramientas de vídeo…"), v.herramientas); m.addAction(_("Acerca de"), v.acerca_de); m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
-    t.setContextMenu(m); t.setToolTip("Screencapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
+    t.setContextMenu(m); t.setToolTip("OweeCapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
 
 def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
 
@@ -298,7 +303,7 @@ def main():
         servicio.enviar(orden or "Mostrar"); return
     if orden == "Salir": return                                                    # --quit sin instancia: nada que cerrar
     signal.signal(signal.SIGINT, lambda *a: QApplication.quit())                  # Ctrl+C en la terminal cierra la aplicación
-    app = QApplication(sys.argv); app.setApplicationName("screencapture"); app.setDesktopFileName("screencapture"); app.setQuitOnLastWindowClosed(False); v = Ventana(); oferta = servicio.ofrecer(v)
+    app = QApplication(sys.argv); app.setApplicationName("oweecapture"); app.setDesktopFileName("oweecapture"); app.setQuitOnLastWindowClosed(False); v = Ventana(); oferta = servicio.ofrecer(v)
     pulso = QTimer(); pulso.start(300); pulso.timeout.connect(lambda: None)         # deja que Python atienda las señales mientras Qt espera
     if orden in ("Captura", "Grabar", "Presentacion"): QTimer.singleShot(300, lambda: servicio_orden(v, orden))      # arranque con una orden: se ejecuta y la aplicación queda en la bandeja
     elif "--segundo-plano" not in sys.argv: v.show()          # con --segundo-plano solo atiende a los atajos

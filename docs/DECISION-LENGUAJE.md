@@ -34,7 +34,7 @@ Hoy se usa `wlr-screencopy` (vía `wf-recorder` y `grim`). **Solo funciona en co
 
 **Camino: no reescribir ahora.** Hacerlo en tres etapas para no perder lo que ya funciona:
 1. **Etapa 1 (Python + GTK4, ahora):** cambiar el *backend* a portal + PipeWire + GStreamer, que es el cambio que da más valor (GNOME y KDE) y el que tiene más incertidumbre técnica. Si funciona en Python, funcionará en Rust. Python sirve aquí como prototipo rápido porque no toca los fotogramas.
-2. **Etapa 2 (núcleo en Rust):** cuando el diseño esté estable, pasar la tubería, la grabación por segmentos, la recuperación y la API D-Bus a un *crate* `screencapture-core`, con un binario de línea de órdenes y un servicio. La interfaz Python sigue usándolo por D-Bus.
+2. **Etapa 2 (núcleo en Rust):** cuando el diseño esté estable, pasar la tubería, la grabación por segmentos, la recuperación y la API D-Bus a un *crate* `oweecapture-core`, con un binario de línea de órdenes y un servicio. La interfaz Python sigue usándolo por D-Bus.
 3. **Etapa 3 (interfaz en Rust):** pasar la interfaz a `gtk4-rs` + libadwaita si el consumo de memoria y la distribución lo justifican.
 
 **Por qué no Qt:** en OweeLinux y en la mayoría de escritorios ligeros la pila ya es GTK; mezclar Qt añade decenas de MB; las superposiciones en Wayland están mejor resueltas en GTK con `gtk4-layer-shell`. Qt sería la elección si el objetivo principal fuera KDE.

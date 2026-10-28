@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>OweeCapture</title>
+  <defs>
+    <linearGradient id="fondo" x1="0.15" y1="0.1" x2="0.85" y2="0.95"><stop offset="0" stop-color="#2B9482"/><stop offset="1" stop-color="#145247"/></linearGradient>
+    <clipPath id="cuerpo"><path d="M 88 368 C 112 432 238 440 322 378 C 392 326 392 232 342 168 C 350 228 322 290 252 302 C 188 312 114 300 88 368 Z"/></clipPath>
+  </defs>
+  <circle cx="256" cy="256" r="248" fill="url(#fondo)"/>
+  <circle cx="256" cy="256" r="226" fill="none" stroke="#FFEDB3" stroke-opacity="0.35" stroke-width="5"/>
+  <path d="M 340 172 C 318 148 276 118 272 72 C 294 84 308 94 316 108 C 312 84 318 62 334 46 C 346 64 352 84 358 104 C 368 92 384 86 396 86 C 402 124 380 162 352 190 Z" fill="#FF5C45"/>
+  <path d="M 322 382 C 358 346 412 334 444 352 C 438 374 410 388 384 384 C 366 392 344 392 322 382 Z" fill="#FF5C45"/>
+  <path d="M 88 368 C 112 432 238 440 322 378 C 392 326 392 232 342 168 C 350 228 322 290 252 302 C 188 312 114 300 88 368 Z" fill="#FFEDB3"/>
+  <g clip-path="url(#cuerpo)"><path d="M 142 316 C 190 302 238 300 272 284 C 282 306 256 326 226 332 C 196 338 156 336 142 316 Z" fill="#FF5C45"/><path d="M 262 340 C 290 330 322 344 320 372 C 316 396 282 402 262 392 C 246 382 244 350 262 340 Z" fill="#3A2B2A"/><path d="M 356 246 C 376 252 384 290 372 328 C 358 342 338 330 336 308 C 346 296 346 270 356 246 Z" fill="#3A2B2A"/></g>
+  <path d="M 96 150 C 112 118 138 94 170 80" fill="none" stroke="#fff" stroke-opacity="0.38" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="84" cy="336" r="7" fill="#FFEDB3" fill-opacity="0.45"/><circle cx="100" cy="304" r="5" fill="#FFEDB3" fill-opacity="0.45"/><circle cx="82" cy="278" r="3.5" fill="#FFEDB3" fill-opacity="0.45"/>
+  <circle cx="120" cy="372" r="15" fill="#FF3B30"/><circle cx="113" cy="365" r="4.5" fill="#fff"/>
+</svg>

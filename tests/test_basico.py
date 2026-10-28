@@ -1,8 +1,8 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-os.environ.setdefault("SCREENCAPTURE_SIN_ATAJOS", "1")          # crear la ventana en una prueba no debe registrar atajos globales en el KDE del usuario
-from screencapture import audio, clips, core, directo, efectos, herramientas, i18n, ruido_vivo
+os.environ.setdefault("OWEECAPTURE_SIN_ATAJOS", "1")          # crear la ventana en una prueba no debe registrar atajos globales en el KDE del usuario
+from oweecapture import audio, clips, core, directo, efectos, herramientas, i18n, ruido_vivo
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -79,7 +79,7 @@ class Audio(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_volumen_y_reduccion_de_ruido_medidos(self):
         import re
-        from screencapture import portal
+        from oweecapture import portal
         def medir(f, a, b):
             r = subprocess.run(["ffmpeg", "-i", f, "-af", f"atrim={a}:{b},volumedetect", "-f", "null", "-"], capture_output=True, text=True).stderr; return float(re.search(r"mean_volume: (-?[\d.]+)", r).group(1))
         with tempfile.TemporaryDirectory() as d:
@@ -96,13 +96,13 @@ class Audio(unittest.TestCase):
 
 class Burbuja(unittest.TestCase):
     def test_opciones_invalidas_vuelven_al_valor_por_defecto(self):
-        from screencapture import burbuja
+        from oweecapture import burbuja
         o = burbuja.limpiar({"forma": "triangulo", "borde": "rosa", "fondo": "rojo", "brillo": 999, "contraste": -3, "espejo": 1, "otra": 1})
         self.assertEqual(o, {"forma": "circulo", "borde": "#2A9D8F", "espejo": True, "brillo": 50, "contraste": 50, "fondo": ""})
     def test_croma_deja_transparente_el_fondo_verde_y_opaco_lo_demas(self):
         import gi; gi.require_version("Gst", "1.0")
         from gi.repository import Gst
-        from screencapture import burbuja
+        from oweecapture import burbuja
         Gst.init(None)
         def alfa(color):
             p = Gst.parse_launch(burbuja.descripcion(f"videotestsrc num-buffers=3 pattern=solid-color foreground-color={color}", burbuja.limpiar({"fondo": "green"})))
@@ -187,7 +187,7 @@ class VistaPrevia(unittest.TestCase):
     def test_reproductor_muestra_salta_y_para_donde_se_le_pide(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
-        from screencapture import reproductor
+        from oweecapture import reproductor
         app = QApplication.instance() or QApplication([])
         def esperar(seg, hasta=None):
             fin = time.time() + seg
@@ -231,7 +231,7 @@ class Presentacion(unittest.TestCase):
     def _trazo(self, d, a, b):
         d.mousePressEvent(self._ev("p", a)); d.mouseMoveEvent(self._ev("m", ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))); d.mouseMoveEvent(self._ev("m", b)); d.mouseReleaseEvent(self._ev("r", b))
     def test_seis_herramientas_deshacer_borrar_y_clic_suelto(self):
-        from screencapture import presentacion as P
+        from oweecapture import presentacion as P
         d = P.Dibujo(); d.resize(800, 500); d.show()
         for h, (a, b) in zip(("lapiz", "resaltador", "flecha", "marco", "elipse"), (((10, 10), (200, 60)), ((10, 80), (200, 80)), ((10, 150), (200, 100)), ((300, 10), (500, 120)), ((300, 150), (500, 260)))): d.herramienta_es(h); self._trazo(d, a, b)
         d.herramienta_es("texto"); d.mousePressEvent(self._ev("p", (50, 400))); d.editor.setText("Hola"); d.editor.returnPressed.emit()
@@ -239,13 +239,13 @@ class Presentacion(unittest.TestCase):
         d.herramienta_es("marco"); d.mousePressEvent(self._ev("p", (5, 5))); d.mouseReleaseEvent(self._ev("r", (5, 5))); self.assertEqual(len(d.trazos), 6)          # un clic suelto no deja una figura de tamaño cero
         d.deshacer(); self.assertEqual(len(d.trazos), 5); d.borrar(); self.assertEqual(d.trazos, []); d.close()
     def test_texto_vacio_o_cancelado_no_deja_nada_y_color_y_grosor_se_aplican(self):
-        from screencapture import presentacion as P
+        from oweecapture import presentacion as P
         d = P.Dibujo(); d.resize(400, 300); d.show(); d.herramienta_es("texto"); d.mousePressEvent(self._ev("p", (50, 50))); d.editor.setText("   "); d.editor.returnPressed.emit(); self.assertEqual(d.trazos, [])
         d.mousePressEvent(self._ev("p", (50, 50))); d.cerrar_editor(); self.assertIsNone(d.editor); d.herramienta_es("flecha"); d.color_es("#2A7FFF"); d.grosor_es(10); self._trazo(d, (10, 10), (200, 100))
         self.assertEqual((d.trazos[0]["c"], d.trazos[0]["w"]), ("#2A7FFF", 10)); d.close()
     def test_la_punta_de_la_flecha_apunta_al_destino_y_crece_con_el_grosor(self):
         from PySide6.QtCore import QPointF
-        from screencapture import presentacion as P
+        from oweecapture import presentacion as P
         a, b = QPointF(0, 0), QPointF(100, 0); c3, c10 = P.cabeza_de_flecha(a, b, 3), P.cabeza_de_flecha(a, b, 10)
         self.assertEqual(c3[0], b); self.assertGreater(abs(c10[1].y()), abs(c3[1].y())); self.assertLess(c3[1].x(), 100)
 
@@ -257,7 +257,7 @@ class VentanaPrincipal(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
     def test_pestanas_clave_oculta_y_datos_del_autor(self):
         from PySide6.QtWidgets import QLineEdit
-        from screencapture import autor, kwin, qtapp
+        from oweecapture import autor, kwin, qtapp
         v = qtapp.Ventana(); v.show()
         try:
             self.assertEqual([v.pestanas.tabText(i) for i in range(3)], ["Grabar", "Audio y cámara", "Directo"])
@@ -335,7 +335,7 @@ class MarcoVertical(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
     def test_marco_vertical_es_9_16_exacto_par_y_cabe_en_la_pantalla(self):
         from PySide6.QtCore import QPoint
-        from screencapture import selector
+        from oweecapture import selector
         s = selector.Selector(None, (), True); s.resize(1366, 768)
         for centro in (QPoint(0, 0), QPoint(683, 384), QPoint(1366, 768)):
             s.centro = centro
@@ -344,14 +344,14 @@ class MarcoVertical(unittest.TestCase):
                 self.assertEqual(r.width() * 16, r.height() * 9); self.assertEqual((r.width() % 2, r.height() % 2), (0, 0)); self.assertTrue(0 <= r.left() and r.right() < 1366 and 0 <= r.top() and r.bottom() < 768)
     def test_el_marco_visible_nunca_toca_la_zona_grabada(self):
         from PySide6.QtCore import QRect
-        from screencapture import marco
+        from oweecapture import marco
         for z in (QRect(450, 60, 432, 646), QRect(0, 0, 400, 300), QRect(900, 400, 466, 368)):
             seg = marco.segmentos(z, 1366, 768); self.assertTrue(all(not r.intersects(z) for r in seg)); self.assertTrue(all(r.isEmpty() or QRect(0, 0, 1366, 768).contains(r) for r in seg))          # los que caen fuera de la pantalla (zona pegada al borde) quedan vacíos
 
 class ZonaMovible(unittest.TestCase):
     def test_asa_y_mover_respetan_la_pantalla(self):
         from PySide6.QtCore import QPoint, QRect
-        from screencapture import marco
+        from oweecapture import marco
         z = QRect(450, 90, 396, 560); a = marco.asa(z, 1366, 768); self.assertFalse(a.intersects(z)); self.assertTrue(a.bottom() < z.top())            # el asa va fuera, encima
         self.assertTrue(marco.asa(QRect(450, 4, 396, 700), 1366, 768).top() > 700)                                                                           # sin sitio arriba: abajo
         self.assertIsNone(marco.asa(QRect(0, 0, 400, 768), 1366, 768))                                                                                       # sin sitio en ninguno: sin asa
@@ -360,12 +360,12 @@ class ZonaMovible(unittest.TestCase):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtCore import QRect
         from PySide6.QtWidgets import QApplication
-        from screencapture import marco
+        from oweecapture import marco
         QApplication.instance() or QApplication([]); m = marco.Marco(QRect(100, 90, 300, 560)); m.mostrar(); m.zona = QRect(700, 165, 300, 560); m.mascara()
         self.assertTrue(m.mask().isEmpty())          # QWidget.setMask recortaría el pintado y dejaría una estela al arrastrar; la máscara de entrada va en la ventana de plataforma
         m.close()
     def test_mover_zona_cambia_el_recorte_sin_cambiar_el_tamano_y_lo_anota(self):
-        from screencapture import portal
+        from oweecapture import portal
         g = portal.Grabador(); g.corriendo = True; g.t0 = time.time(); g.flujo = (1366, 768); g.rect = (100, 60, 432, 646); g.recorte = g._recorte(); g.movs = [(0.0, 100, 60)]
         self.assertTrue(g.mover_zona(701, 61)); self.assertEqual(g.rect, (700, 60, 432, 646))                  # números pares
         self.assertIn("left=700 top=60 right=234 bottom=62", g.recorte); self.assertEqual(g.movs[-1][1:], (700, 60))
