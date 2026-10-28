@@ -30,7 +30,7 @@ class Ventana(QWidget):
         self.formato = QComboBox(); [self.formato.addItem(t, k) for k, t in FORMATOS]; self.formato.setCurrentIndex(max(0, self.formato.findData(self.cfg["formato"])))
         self.clip_seg = QComboBox(); [self.clip_seg.addItem(f"{n} s", n) for n in clips.OPCIONES]; self.clip_seg.setCurrentIndex(max(0, self.clip_seg.findData(self.cfg["clip_seg"])))
         self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
-        self.ruido = QComboBox(); [self.ruido.addItem(t, n) for n, t in RUIDOS]; self.ruido.setCurrentIndex(max(0, self.ruido.findData(self.cfg["ruido"]))); self.mic.toggled.connect(self.ruido.setEnabled); self.ruido.setEnabled(self.mic.isChecked())
+        self.ruido = QComboBox(); [self.ruido.addItem(t, n) for n, t in RUIDOS]; self.ruido.setCurrentIndex(max(0, self.ruido.findData(self.cfg["ruido"]))); self.mic.toggled.connect(self.ruido.setEnabled); self.ruido.setEnabled(self.mic.isChecked()); self.ruido.setToolTip(_("Al grabar se aplica al guardar el vídeo; en directo se usa el cancelador de ruido de PipeWire (WebRTC), que se activa solo mientras transmites."))
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
         form.addRow(_("Zona al grabar"), self.formato); form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); form.addRow(self.efectos_camara()); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
@@ -149,7 +149,7 @@ class Ventana(QWidget):
         self.d_plat.currentIndexChanged.connect(lambda: self.d_url.setText(self.url_plataforma()))
         self.b_directo = QPushButton(_("Transmitir en directo")); self.b_directo.clicked.connect(self.transmitir)
         f.addRow(_("Plataforma"), self.d_plat); f.addRow(_("Servidor"), self.d_url); f.addRow(_("Clave"), self.d_clave); f.addRow(self.d_recordar); f.addRow(_("Calidad"), self.d_calidad)
-        nota = QLabel(_("Se guarda una copia local de lo emitido. La pausa y el zoom no están disponibles en directo.")); nota.setWordWrap(True); f.addRow(nota); f.addRow(self.b_directo)
+        nota = QLabel(_("Se guarda una copia local de lo emitido. La pausa y el zoom no están disponibles en directo. La reducción de ruido del micrófono se aplica en vivo.")); nota.setWordWrap(True); f.addRow(nota); f.addRow(self.b_directo)
         return self.plegable(_("Transmitir en directo"), panel)
 
     def url_plataforma(self): return next((u for i, _n, u in directo.PLATAFORMAS if i == self.d_plat.currentData()), "")

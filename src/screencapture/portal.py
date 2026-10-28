@@ -6,7 +6,7 @@ import dbus, dbus.mainloop.glib
 import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst
-from . import audio, clips, core, directo as dir_
+from . import audio, clips, core, directo as dir_, ruido_vivo
 from .i18n import _
 
 TOKEN = os.path.join(os.path.dirname(core.CFG), "portal.json")          # elección de pantalla recordada (restore token del portal)
@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.limpiador = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -124,7 +124,10 @@ class Grabador:
         """Los mensajes de error de GStreamer pueden traer la URL con la clave de transmisión: nunca se muestra ni se guarda."""
         return dir_.ocultar(str(texto), self.directo["clave"]) if self.directo else str(texto)
 
-    def _fallo(self, mensaje): self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(self._ocultar(mensaje))
+    def _parar_limpiador(self):
+        if self.limpiador: self.limpiador.detener(); self.limpiador = None
+
+    def _fallo(self, mensaje): self._parar_limpiador(); self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(self._ocultar(mensaje))
 
     def _elegir(self, r):
         self.sesion = r["session_handle"]
@@ -154,7 +157,13 @@ class Grabador:
         """Tubería de directo (ver directo.py): una sola codificación para la red y la copia local. La copia queda con el audio ya mezclado en una pista: no hay ajustes posteriores."""
         ancho, alto = (self.rect[2], self.rect[3]) if self.rect else self.flujo
         self.mkv = os.path.join(self.tmp, "video.mkv")
-        fuentes = ([('pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true', self.mezcla[1])] if self.sistema else []) + ([("pipewiresrc do-timestamp=true", self.mezcla[2])] if self.mic else [])
+        mic = "pipewiresrc do-timestamp=true"
+        if self.mic and self.mezcla[3]:                          # reducción de ruido pedida: micrófono virtual de PipeWire (WebRTC); si no se puede, se transmite con el micrófono normal y se avisa
+            self.limpiador = ruido_vivo.Limpiador()
+            if self.limpiador.iniciar(): mic = f"pipewiresrc target-object={ruido_vivo.NOMBRE} do-timestamp=true"
+            else: self.limpiador = None; self.nota = _("sin reducción de ruido (no disponible en este equipo)")
+        fuentes = ([('pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true', self.mezcla[1])] if self.sistema else []) + ([(mic, self.mezcla[2])] if self.mic else [])
+        if self.mic and self.mezcla[3] == 2: fuentes = [(o + " ! audiodynamic mode=expander characteristics=soft-knee threshold=0.02 ratio=3.0", v) if "target-object" in o else (o, v) for o, v in fuentes]          # «fuerte»: además una puerta que baja el micrófono entre frases
         desc = dir_.descripcion(f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000", self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv)
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False
@@ -168,7 +177,7 @@ class Grabador:
     def _red_perdida(self, motivo):
         """La rama de red se rindió (nunca conectó o agotó los reintentos): el directo termina, pero lo grabado en local se guarda."""
         self.nota = (_("sin conexión con el servidor") if self.red and self.red.alguna_vez else _("no se pudo conectar con el servidor: revisa la dirección y la clave")); self._registrar(f"Red perdida: {motivo}")
-        if self.corriendo: self.corriendo = False; self._fin_eos() if any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in self.segmentos) else (self.pipe.set_state(Gst.State.NULL), self._cerrar_sesion(), self.al_fallar(self.nota))
+        if self.corriendo: self.corriendo = False; self._fin_eos() if any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in self.segmentos) else (self.pipe.set_state(Gst.State.NULL), self._parar_limpiador(), self._cerrar_sesion(), self.al_fallar(self.nota))
 
     def _lanzar(self):
         """Arranca la tubería de un trozo nuevo. El primero se llama video.mkv (nombre que reconoce core.recover_orphans); los siguientes, video-2.mkv…"""
@@ -194,7 +203,7 @@ class Grabador:
             if self.directo: self.nota = _("la transmisión se cortó: ") + self._ocultar(e.message)
             self._registrar(f"{e} | {detalle} | zona={self.zona} | origen={m.src.get_name()}")
             if any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in self.segmentos): self._fin_eos(); return      # lo más probable: se cortó desde el indicador del escritorio («Dejar de compartir»); se guarda lo grabado
-            self.pipe.set_state(Gst.State.NULL); self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(_("Error al grabar: ") + self._ocultar(e) + _(" (detalle en ") + LOG + ")")
+            self.pipe.set_state(Gst.State.NULL); self._parar_limpiador(); self._cursor_grabado(); self._cerrar_sesion(); self.al_fallar(_("Error al grabar: ") + self._ocultar(e) + _(" (detalle en ") + LOG + ")")
         elif m.type == Gst.MessageType.EOS and isinstance(m.src, Gst.Pipeline):
             if self.pausada and not self.final: self._cerrar_trozo()          # fin de un trozo por una pausa: la grabación sigue abierta
             else: self._fin_eos()
@@ -214,7 +223,7 @@ class Grabador:
 
     def _fin_eos(self):
         if self.cerrando: return False
-        self.cerrando = True
+        self.cerrando = True; self._parar_limpiador()
         if self.pipe is not None: self.pipe.get_bus().remove_signal_watch(); self.pipe.set_state(Gst.State.NULL); self.pipe = None
         self._cerrar_sesion(); segs, calidad, al, tmp, max_mb = list(self.segmentos), self.calidad, self.al_terminar, self.tmp, self.max_mb
         efectos = self._cursor_grabado(); mezcla = self.mezcla

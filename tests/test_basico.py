@@ -1,7 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from screencapture import audio, clips, core, directo, efectos, herramientas, i18n
+from screencapture import audio, clips, core, directo, efectos, herramientas, i18n, ruido_vivo
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -199,6 +199,23 @@ class VistaPrevia(unittest.TestCase):
             r.ver_tramo(1.0, 2.0); esperar(5, lambda: not r.reproduciendo); self.assertFalse(r.reproduciendo); self.assertAlmostEqual(r.segundos(), 2.0, delta=0.25)          # se para al final del tramo
             r.poner_guia(0.5); esperar(0.3); self.assertEqual(r.guia, 0.5); r.poner_guia(None); self.assertIsNone(r.guia)
             r.cargar(""); self.assertIsNone(r.pipe); self.assertFalse(r.boton.isEnabled()); r.detener()
+
+class RuidoVivo(unittest.TestCase):
+    def test_la_configuracion_no_toca_la_ganancia_y_nombra_el_microfono(self):
+        c = ruido_vivo.configuracion(); self.assertIn(ruido_vivo.NOMBRE, c); self.assertIn("webrtc.noise_suppression = true", c); self.assertIn("webrtc.gain_control = false", c)          # sin AGC: respeta el volumen elegido
+    def test_el_expansor_de_la_opcion_fuerte_es_valido_en_gstreamer(self):
+        import gi; gi.require_version("Gst", "1.0")
+        from gi.repository import Gst
+        Gst.init(None); self.assertIsNotNone(Gst.parse_launch("audiotestsrc num-buffers=1 ! audiodynamic mode=expander characteristics=soft-knee threshold=0.02 ratio=3.0 ! fakesink"))
+    @unittest.skipUnless(ruido_vivo.disponible(), "sin PipeWire echo-cancel")
+    def test_el_microfono_virtual_aparece_al_iniciar_y_desaparece_al_detener(self):
+        import time
+        l = ruido_vivo.Limpiador(); self.assertTrue(l.iniciar()); self.assertTrue(ruido_vivo._hay_nodo()); conf = l.conf; self.assertTrue(os.path.exists(conf))
+        l.detener(); self.assertIsNone(l.proc); self.assertFalse(os.path.exists(conf))
+        for _i in range(20):
+            if not ruido_vivo._hay_nodo(): break
+            time.sleep(0.25)
+        self.assertFalse(ruido_vivo._hay_nodo()); l.detener()          # parar dos veces no falla
 
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
