@@ -211,6 +211,6 @@ class MarcoVertical(unittest.TestCase):
         from PySide6.QtCore import QRect
         from screencapture import marco
         for z in (QRect(450, 60, 432, 646), QRect(0, 0, 400, 300), QRect(900, 400, 466, 368)):
-            seg = marco.segmentos(z, 1366, 768); self.assertTrue(all(not r.intersects(z) for r in seg)); self.assertTrue(all(QRect(0, 0, 1366, 768).contains(r) for r in seg))
+            seg = marco.segmentos(z, 1366, 768); self.assertTrue(all(not r.intersects(z) for r in seg)); self.assertTrue(all(r.isEmpty() or QRect(0, 0, 1366, 768).contains(r) for r in seg))          # los que caen fuera de la pantalla (zona pegada al borde) quedan vacíos
 
 if __name__ == "__main__": unittest.main()
