@@ -33,7 +33,7 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 - Pendiente: editor de capturas en Qt (el de GTK4 sigue en el repositorio pero no funciona en KDE), elegir una ventana, GNOME.
 
 ## Dependencias (sistema)
-`python3-pyside6.qtwidgets`, `python3-pyside6.qtgui`, `python3-pyside6.qtdbus`, `python3-gi`, `python3-dbus`, `gstreamer1.0-pipewire`, `gstreamer1.0-plugins-ugly` (x264), `ffmpeg`, `pipewire`, `xdg-desktop-portal` con el módulo de su escritorio, `libnotify-bin`. En KDE hace falta instalar `data/oweecapture.desktop` en `~/.local/share/applications/`: el portal solo atiende a una aplicación con su archivo `.desktop`.
+`python3-pyside6.qtwidgets`, `python3-pyside6.qtgui`, `python3-gi`, `python3-dbus`, `gstreamer1.0-pipewire`, `gstreamer1.0-plugins-ugly` (x264), `ffmpeg`, `pipewire`, `xdg-desktop-portal` con el módulo de su escritorio, `libnotify-bin`. En KDE hace falta instalar `data/oweecapture.desktop` en `~/.local/share/applications/`: el portal solo atiende a una aplicación con su archivo `.desktop`.
 
 ## Ejecutar desde el código
 ```bash

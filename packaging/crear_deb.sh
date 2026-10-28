@@ -30,14 +30,10 @@ Architecture: all
 Maintainer: Hector Martinez <hector@oweeme.com>
 Homepage: https://oweeme.com
 Installed-Size: $TAM
-Depends: python3 (>= 3.11), python3-pyside6.qtcore, python3-pyside6.qtgui, python3-pyside6.qtwidgets, python3-pyside6.qtdbus, python3-gi, python3-dbus, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, ffmpeg, pipewire, xdg-desktop-portal
+Depends: python3 (>= 3.11), python3-pyside6.qtcore, python3-pyside6.qtgui, python3-pyside6.qtwidgets, python3-gi, python3-dbus, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, ffmpeg, pipewire, xdg-desktop-portal
 Recommends: xdg-desktop-portal-kde | xdg-desktop-portal-gnome | xdg-desktop-portal-wlr, libnotify-bin
-Description: capturas, grabación de pantalla, directos y herramientas de vídeo
- OweeCapture hace capturas de pantalla y graba la pantalla (con audio del
- sistema, micrófono y cámara) en Wayland a través del portal del escritorio.
- Transmite en directo por RTMP (YouTube, TikTok, Twitch) con copia local y
- reconexión automática, y trae herramientas para publicar: vertical 9:16,
- recorte, corte de silencios y subtítulos automáticos locales.
+Description: screenshots, screen recording, live streaming and video tools
+ OweeCapture takes screenshots and records the screen (with system audio, microphone and webcam) on Wayland through the desktop portal. It streams live over RTMP (YouTube, TikTok, Twitch) with a local copy and automatic reconnection, and includes tools to publish videos: vertical 9:16, trimming, silence cutting and local automatic subtitles.
 EOF
 cat > "$B/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
@@ -59,4 +55,5 @@ fi
 exit 0
 EOF
 chmod 755 "$B/DEBIAN/postinst" "$B/DEBIAN/postrm"
+if LC_ALL=C grep -nP '[^\x00-\x7F]' "$B/DEBIAN/control" >/dev/null; then echo "el archivo control tiene caracteres no ASCII: algunos instaladores (p. ej. el de Deepin) los muestran rotos" >&2; exit 1; fi
 mkdir -p dist; dpkg-deb --root-owner-group -Zxz -b "$B" "dist/$PKG.deb" >/dev/null; echo "dist/$PKG.deb"

@@ -1,23 +1,38 @@
 """Pieza específica de KDE: en Wayland un programa no puede pedir «siempre encima» ni quitar la barra de título de sus ventanas, así que se le pide a KWin con un script mínimo por D-Bus.
 En otros escritorios no hace nada (las ventanas quedan como ventanas normales)."""
 import json, os, tempfile, zlib
+import dbus, dbus.mainloop.glib
 from PySide6.QtCore import QTimer
-from PySide6.QtDBus import QDBusConnection, QDBusInterface
 
-_cargados = []
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)          # D-Bus con dbus-python (que la aplicación ya necesita para el portal y los atajos): así no hace falta el módulo QtDBus de PySide6, que algunas distribuciones (Deepin) no empaquetan
+_cargados = []; _TIEMPO = 5          # segundos máximos que se espera a KWin en cada llamada
 
-def _kwin(ruta, interfaz):
-    return QDBusInterface("org.kde.KWin", ruta, interfaz, QDBusConnection.sessionBus())
+class _Respuesta:
+    """La respuesta de una llamada a KWin: `arguments()` es la lista de valores devueltos, o un único texto de error si la llamada falló."""
+    def __init__(self, valores): self.valores = valores
+    def arguments(self): return self.valores
+
+class _Interfaz:
+    """Una interfaz de KWin; `call(método, argumentos…)` no lanza excepciones: si KWin no está o falla, devuelve una respuesta con el texto del error."""
+    def __init__(self, ruta, interfaz): self.ruta = ruta; self.interfaz = interfaz
+    def call(self, metodo, *args):
+        try:
+            extra = {"signature": "s" * len(args)} if args and all(isinstance(x, str) for x in args) else {}          # KWin ofrece loadScript(ruta) y loadScript(ruta, nombre): sin firma explícita dbus-python elige la primera y falla
+            r = getattr(dbus.Interface(dbus.SessionBus().get_object("org.kde.KWin", self.ruta), self.interfaz), metodo)(*args, timeout=_TIEMPO, **extra)
+            return _Respuesta([] if r is None else [r])
+        except dbus.DBusException as e: return _Respuesta([str(e)])
+
+def _kwin(ruta, interfaz): return _Interfaz(ruta, interfaz)
 
 def _entero(respuesta):
     """El identificador de script que devuelve KWin, o -1 si la llamada falló (entonces el primer argumento es un texto de error)."""
     a = respuesta.arguments()
-    return a[0] if a and isinstance(a[0], int) else -1
+    return int(a[0]) if a and isinstance(a[0], int) and not isinstance(a[0], bool) else -1
 
 def disponible():
-    bus = QDBusConnection.sessionBus()
-    if not bus.isConnected(): return False
-    return bool(bus.interface().isServiceRegistered("org.kde.KWin").value())          # .value(): la respuesta de D-Bus es un objeto que siempre sería «verdadero» (en GNOME o Deepin diría que hay KWin)
+    """True solo si hay un KWin en la sesión (KDE Plasma). En GNOME, Deepin sin KWin o una sesión sin bus, False."""
+    try: return bool(dbus.SessionBus().name_has_owner("org.kde.KWin"))
+    except dbus.DBusException: return False
 
 def mantener_encima(titulos):
     """Deja siempre encima, sin marco y fuera de la barra de tareas las ventanas cuyo título esté en `titulos`. Devuelve True si KWin cargó el script."""
