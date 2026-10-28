@@ -83,7 +83,7 @@ jobs:
           if command -v apt-get >/dev/null; then apt-get install -y -qq --no-install-recommends xvfb xauth
           elif command -v dnf >/dev/null; then dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth
           elif command -v pacman >/dev/null; then pacman -S --noconfirm xorg-server-xvfb xorg-xauth
-          elif command -v zypper >/dev/null; then zypper --non-interactive install xorg-x11-server-Xvfb xauth; fi
+          elif command -v zypper >/dev/null; then zypper --non-interactive install xorg-x11-server-Xvfb xvfb-run xauth; fi
           xvfb-run -a env QT_QPA_PLATFORM=xcb "$HOME/.local/bin/oweecapture" --comprobar
       - name: Desinstalar y comprobar que no queda nada
         run: |
