@@ -58,26 +58,35 @@ _QML = ("import QtQuick\nimport org.kde.kwin\nItem {\n    property var lote: []\
         "    DBusCall { id: envio; service: \"org.oweecapture.App\"; path: \"/org/oweecapture/App\"; dbusInterface: \"org.oweecapture.App\"; method: \"RecibirCursor\" }\n"
         "    Timer { interval: 33; repeat: true; running: true; onTriggered: { var p = Workspace.cursorPos; lote.push([Date.now(), Math.round(p.x), Math.round(p.y)]);\n"
         "        if (lote.length >= 6) { envio.arguments = [JSON.stringify(lote)]; envio.call(); lote = []; } } }\n}\n")
-_NOMBRE_CURSOR = "oweecapture-cursor"; muestras = []; _siguiendo = [False]
+_NOMBRE_CURSOR = "oweecapture-cursor"; muestras = []; _siguiendo = [False]; _usos = [0]; ultima = [None]          # _usos: cuántos lo están usando a la vez (zoom/halo al grabar y ondas de clic); el script de KWin se descarga cuando el último termina
 
 def seguir_cursor():
     """Empieza a reunir las posiciones del cursor en `muestras` ([hora en ms, x, y]). Devuelve False si no hay KWin (el zoom y el halo no están disponibles en otros escritorios)."""
     if not disponible(): return False
+    _usos[0] += 1
     if _siguiendo[0]: return True
     carpeta = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache")), "oweecapture", "kwin", format(zlib.crc32(_QML.encode()), "08x")); os.makedirs(carpeta, exist_ok=True)
     ruta = os.path.join(carpeta, "cursor.qml")      # KWin guarda el QML en caché por ruta: una carpeta por versión del texto evita que se use una copia vieja
     if not os.path.exists(ruta): open(ruta, "w").write(_QML)
     muestras.clear(); _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR)
     r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadDeclarativeScript", ruta, _NOMBRE_CURSOR); ident = r.arguments()[0] if r.arguments() else -1
-    if ident < 0: return False
+    if ident < 0: _usos[0] -= 1; return False
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _siguiendo[0] = True; return True
 
 def dejar_cursor():
-    """Deja de seguir el cursor y devuelve lo reunido."""
+    """Un uso menos del seguimiento. Si era el último, lo para y devuelve lo reunido (vaciándolo); si aún lo usa otro, devuelve una copia y lo deja en marcha."""
+    if _usos[0] > 0: _usos[0] -= 1
+    if _usos[0] > 0: return list(muestras)
     if _siguiendo[0]: _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _NOMBRE_CURSOR); _siguiendo[0] = False
     reunido = list(muestras); muestras.clear(); return reunido
 
 def recibir_cursor(texto):
     if _siguiendo[0]:
         try: muestras.extend(json.loads(texto))
-        except ValueError: pass
+        except ValueError: return
+        if muestras: ultima[0] = muestras[-1]
+        if len(muestras) > 400_000: del muestras[:200_000]          # tope (≈ 3 h a 30 muestras por segundo)
+
+def ultima_posicion():
+    """(x, y) de la última posición conocida del cursor (hace menos de ~35 ms mientras se sigue) o None."""
+    return (ultima[0][1], ultima[0][2]) if ultima[0] else None

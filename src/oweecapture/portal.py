@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.limpiador = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.sigue = False; self.directo = None; self.limpiador = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -150,7 +150,8 @@ class Grabador:
             self.t0 = time.time(); self.corriendo = True
             if self.efectos and self.flujo[0]:
                 from . import kwin
-                if not kwin.seguir_cursor(): self.efectos = None          # sin KWin no hay posición del cursor: se graba sin zoom ni halo
+                self.sigue = kwin.seguir_cursor()
+                if not self.sigue: self.efectos = None          # sin KWin no hay posición del cursor: se graba sin zoom ni halo
             self.al_empezar()
 
     def _lanzar_directo(self):
@@ -246,9 +247,9 @@ class Grabador:
 
     def _cursor_grabado(self):
         """Cierra el seguimiento del cursor y devuelve (muestras, meta) para los efectos, o None si no se pidieron."""
-        if not self.efectos: return None
+        if not self.efectos or not self.sigue: return None
         from . import kwin
-        muestras = kwin.dejar_cursor(); ahora = time.time(); pausas = [(a, min(b, ahora)) for a, b in self.pausas]
+        self.sigue = False; muestras = kwin.dejar_cursor(); ahora = time.time(); pausas = [(a, min(b, ahora)) for a, b in self.pausas]
         meta = {"t0": self.t0, "pausas": pausas, "pantalla": self.pantalla, "flujo": self.flujo, "recorte": self.rect, "movimientos": list(self.movs), "efectos": self.efectos, "tramos": [tuple(x) for x in self.tramos]}
         return (muestras, meta) if len(muestras) > 10 else None
 

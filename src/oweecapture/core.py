@@ -21,7 +21,7 @@ def _migrar_configuracion():
     except OSError: pass
 _migrar_configuracion()
 DEFAULTS = {"timer": 0, "cursor": False, "clipboard": True, "fps": 24, "audio_system": True, "audio_mic": False, "camera": False, "quality": "whatsapp", "max_mb": 0, "zoom": 0, "halo": False, "vol_sistema": 100, "vol_mic": 100, "ruido": 0,
-            "clip_seg": 30, "formato": "libre", "directo_plataforma": "youtube", "directo_url": "", "directo_clave": "", "directo_recordar": False, "directo_calidad": "720",
+            "clip_seg": 30, "formato": "libre", "clics": False, "teclas": "no", "directo_plataforma": "youtube", "directo_url": "", "directo_clave": "", "directo_recordar": False, "directo_calidad": "720",
             "cam_forma": "circulo", "cam_borde": "#2A9D8F", "cam_espejo": False, "cam_brillo": 0, "cam_contraste": 100, "cam_fondo": ""}
 LEGACY = {"alta": "maxima", "original": "maxima", "buena": "youtube", "media": "whatsapp", "ligera": "whatsapp"}      # nombres de versiones anteriores
 

@@ -14,9 +14,9 @@ class Control:
         self.cancelado = True
         if self.proc and self.proc.poll() is None: self.proc.terminate()
 
-def _correr(cmd, control, timeout=7200):
+def _correr(cmd, control, timeout=7200, cwd=None):
     """Ejecuta ffmpeg guardando el proceso en `control`; devuelve (código, texto de error)."""
-    control = control or Control(); control.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    control = control or Control(); control.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, cwd=cwd)
     try: _o, err = control.proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired: control.proc.kill(); _o, err = control.proc.communicate()
     return control.proc.returncode, err

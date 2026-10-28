@@ -2,7 +2,7 @@
 import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ.setdefault("OWEECAPTURE_SIN_ATAJOS", "1")          # crear la ventana en una prueba no debe registrar atajos globales en el KDE del usuario
-from oweecapture import audio, clips, core, directo, efectos, herramientas, i18n, ruido_vivo
+from oweecapture import audio, clips, core, directo, efectos, entrada, herramientas, i18n, ruido_vivo, subtitulos
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -265,6 +265,84 @@ class VentanaPrincipal(unittest.TestCase):
             v.hide(); self.assertEqual(v.d_clave.echoMode(), QLineEdit.Password); self.assertFalse(v.ver_clave.isChecked())          # al ocultar la ventana, la clave vuelve a taparse
             self.assertIn("@", autor.EMAIL); self.assertTrue(autor.WEB.startswith("https://")); self.assertTrue(autor.NOMBRE)
         finally: kwin.descargar_todo()
+
+class ClicsYTeclas(unittest.TestCase):
+    def test_atajos_y_teclas_especiales_si_el_texto_normal_no(self):
+        t = entrada.Teclas("atajos"); fuera = []
+        for cod, val in ((30, 1), (30, 0), (57, 1), (14, 1)): fuera.append(t.evento(cod, val))          # a, espacio, retroceso: escribir normal
+        self.assertEqual(fuera, [None] * 4)
+        t.evento(29, 1); self.assertEqual(t.evento(46, 1), "Ctrl + C"); t.evento(42, 1); self.assertEqual(t.evento(31, 1), "Ctrl + Shift + S"); t.evento(42, 0); t.evento(29, 0)
+        self.assertEqual(t.evento(28, 1), "Intro"); self.assertEqual(t.evento(1, 1), "Esc"); self.assertEqual(t.evento(59, 1), "F1"); self.assertEqual(t.evento(105, 1), "←")
+        self.assertIsNone(t.evento(46, 1)); self.assertIsNone(t.evento(46, 2))          # soltados los modificadores, la C suelta no se muestra; repetir tampoco
+    def test_modos_no_y_todo(self):
+        self.assertIsNone(entrada.Teclas("no").evento(30, 1)); self.assertIsNone(entrada.Teclas("no").evento(28, 1))
+        t = entrada.Teclas("todo"); self.assertEqual(t.evento(30, 1), "A"); self.assertEqual(t.evento(57, 1), "Espacio"); t.evento(42, 1); self.assertEqual(t.evento(30, 1), "Shift + A")
+    def test_dispositivos_clasifica_teclados_y_punteros(self):
+        texto = 'N: Name="Power Button"\nH: Handlers=kbd event2 \nB: EV=3\n\nN: Name="AT keyboard"\nH: Handlers=sysrq kbd event3 leds \nB: EV=120013\n\nN: Name="Touchpad"\nH: Handlers=mouse0 event11 \nB: EV=b\n\nN: Name="Mic"\nH: Handlers=event4 \nB: EV=21\n'
+        self.assertEqual(entrada.dispositivos(texto), (["/dev/input/event3"], ["/dev/input/event11"]))
+    def test_lector_recibe_clics_y_teclas_de_un_dispositivo_falso(self):
+        import struct, time
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "event0"); os.mkfifo(ruta); visto = []; l = entrada.Lector(lambda *a: visto.append(a), [ruta]); self.assertTrue(l.iniciar())
+            w = os.open(ruta, os.O_WRONLY); ev = lambda tipo, cod, val: struct.pack("llHHi", 0, 0, tipo, cod, val)
+            os.write(w, ev(1, 0x110, 1) + ev(0, 0, 0) + ev(1, 0x110, 0) + ev(1, 0x111, 1) + ev(1, 29, 1) + ev(1, 46, 1) + ev(2, 0, 5)); time.sleep(0.8); l.detener(); os.close(w)
+            self.assertEqual(visto, [("clic", "izquierdo", True), ("clic", "izquierdo", False), ("clic", "derecho", True), ("tecla", 29, 1), ("tecla", 46, 1)])          # el evento de movimiento (tipo 2) se ignora
+        self.assertFalse(entrada.Lector(lambda *a: None, ["/no/existe"]).iniciar())          # sin permiso o sin dispositivos: False
+    def test_ondas_y_teclas_nacen_crecen_y_terminan(self):
+        from oweecapture import efectos_pantalla as E
+        self.assertLess(E.onda(0)[0], E.onda(0.5)[0]); self.assertGreater(E.onda(0)[1], E.onda(0.9)[1]); self.assertIsNone(E.onda(1.0))
+        self.assertEqual(E.opacidad_tecla(0.2), 1.0); self.assertLess(E.opacidad_tecla(E.DURACION_TECLA - 0.1), 1.0); self.assertIsNone(E.opacidad_tecla(E.DURACION_TECLA))
+    def test_la_superposicion_pinta_una_onda_y_se_apaga_sola(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QPointF
+        from PySide6.QtWidgets import QApplication, QWidget
+        from oweecapture import efectos_pantalla as E
+        QApplication.instance() or QApplication([]); w = E.Superposicion(); w.resize(400, 300); w.show(); w.clic(QPointF(200, 150), "izquierdo"); w.tecla("Ctrl + C"); self.assertTrue(w.reloj.isActive())
+        img = QWidget.grab(w).toImage(); self.assertTrue(any(img.pixelColor(x, 150).alpha() > 0 for x in range(180, 260)))          # hay una onda dibujada
+        w.ondas = [(p, b, t - 5) for p, b, t in w.ondas]; w.teclas = [(x, t - 5) for x, t in w.teclas]; w.avanzar(); self.assertFalse(w.reloj.isActive()); self.assertEqual((w.ondas, w.teclas), ([], [])); w.close()
+
+class Subtitulos(unittest.TestCase):
+    P = lambda self, *x: [{"w": a, "ini": b, "fin": c} for a, b, c in x]
+    def test_agrupar_corta_en_pausas_puntos_y_largo(self):
+        pal = self.P(("Hola", 0.0, 0.4), ("a", 0.4, 0.5), ("todos.", 0.5, 1.0), ("Hoy", 1.1, 1.4), ("vemos", 1.4, 1.8), ("algo", 1.8, 2.1), ("nuevo", 4.0, 4.5))
+        l = subtitulos.agrupar(pal); self.assertEqual([x["texto"] for x in l], ["Hola a todos.", "Hoy vemos algo", "nuevo"]); self.assertEqual((l[0]["ini"], l[0]["fin"]), (0.0, 1.0))
+    def test_agrupar_reparte_en_dos_renglones_y_no_pasa_de_la_duracion(self):
+        pal = self.P(*[(f"palabra{i}", i * 0.3, i * 0.3 + 0.25) for i in range(12)]); l = subtitulos.agrupar(pal, max_chars=20)
+        for x in l: self.assertLessEqual(len(x["texto"].splitlines()), 2); self.assertTrue(all(len(r) <= 20 for r in x["texto"].splitlines())); self.assertLessEqual(x["fin"] - x["ini"], 3.3)
+        self.assertEqual(" ".join(x["texto"].replace("\n", " ") for x in l), " ".join(f"palabra{i}" for i in range(12)))          # no se pierde ni se repite ninguna palabra
+    def test_srt_con_formato_correcto_sin_solapes(self):
+        srt = subtitulos.a_srt([{"ini": 1.0, "fin": 1.2, "texto": "uno"}, {"ini": 1.5, "fin": 3.7, "texto": "dos\ntres"}]); self.assertIn("1\n00:00:01,000 --> 00:00:01,480\nuno\n", srt)          # pide 0,8 s mínimo pero se recorta a 20 ms antes de la siguiente
+        self.assertIn("2\n00:00:01,500 --> 00:00:03,700\ndos\ntres", srt)
+        l1 = srt.split("\n\n")[0].splitlines()[1].split(" --> ")[1]; self.assertLess(l1, "00:00:01,500")          # la primera termina antes de que empiece la segunda
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_quemar_dibuja_el_texto_abajo(self):
+        with tempfile.TemporaryDirectory() as d:
+            v = os.path.join(d, "v.mp4"); srt = os.path.join(d, "a b:c.srt"); open(srt, "w").write("1\n00:00:00,000 --> 00:00:02,000\nHola mundo\n")          # nombre con espacio y dos puntos: no debe dar problemas
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=640x360:r=24:d=2", "-pix_fmt", "yuv420p", v], check=True)
+            r, e = subtitulos.quemar(v, srt, os.path.join(d, "s.mp4")); self.assertIsNone(e, e)
+            def brillo(f): return max(subprocess.run(["ffmpeg", "-loglevel", "error", "-ss", "1", "-i", f, "-frames:v", "1", "-vf", "crop=640:140:0:220,format=gray", "-f", "rawvideo", "-"], capture_output=True).stdout)          # el pixel más claro de la franja de abajo
+            self.assertLess(brillo(v), 30); self.assertGreater(brillo(r), 200)          # antes todo negro; después hay texto blanco abajo
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_la_cadena_completa_de_la_ventana_con_un_motor_de_voz_simulado(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from oweecapture import ventana_herramientas as V
+        palabras = [{"w": w, "ini": 0.2 + i * 0.35, "fin": 0.5 + i * 0.35} for i, w in enumerate("hola esto es una prueba de subtítulos".split())]; original = subtitulos.transcribir
+        subtitulos.transcribir = lambda ruta, idioma="", control=None, al_progreso=None: (al_progreso and al_progreso(0.5), (palabras, "es", None))[1]
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                v = os.path.join(d, "v.mp4"); subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=640x360:r=24:d=4", "-f", "lavfi", "-i", "sine=f=300:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", v], check=True); avisos = []
+                o = dict(recorte=False, ini=0, fin=0, exacto=True, vertical=True, modo="desenfoque", pos=0.5, silencios=False, sens="normal", subs=True, idioma="es", quemar=True)
+                final, err = V.VentanaHerramientas.trabajo(v, o, herramientas.Control(), avisos.append); self.assertIsNone(err, err)
+                self.assertTrue(final.endswith("v-vertical-subtitulado.mp4")); self.assertEqual(herramientas.medidas(final)[:2], (1080, 1920)); srt = os.path.splitext(final)[0] + ".srt"; self.assertTrue(os.path.exists(srt)); self.assertIn("hola esto es una prueba", open(srt, encoding="utf-8").read())
+                self.assertEqual(sorted(os.listdir(d)), sorted(["v.mp4", os.path.basename(final), os.path.basename(srt)])); self.assertTrue(any("Transcribiendo" in a for a in avisos))          # sin archivos intermedios
+                o2 = {**o, "quemar": False, "vertical": False}; f2, e2 = V.VentanaHerramientas.trabajo(v, o2, herramientas.Control()); self.assertEqual(f2, v); self.assertTrue(os.path.exists(os.path.splitext(v)[0] + ".srt"))          # solo el .srt, el vídeo intacto
+                subtitulos.transcribir = lambda *a, **k: ([], "es", None); f3, e3 = V.VentanaHerramientas.trabajo(v, o, herramientas.Control()); self.assertIsNone(f3); self.assertIn("No se encontró voz", e3)
+        finally: subtitulos.transcribir = original
+    @unittest.skipUnless(subtitulos.preparado(), "motor de voz no instalado")
+    def test_el_motor_real_no_inventa_palabras_con_un_tono(self):
+        with tempfile.TemporaryDirectory() as d:
+            w = os.path.join(d, "t.wav"); subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=f=440:d=3", w], check=True)
+            palabras, _idi, err = subtitulos.transcribir(w, "es"); self.assertIsNone(err); self.assertEqual(palabras, [])
 
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
