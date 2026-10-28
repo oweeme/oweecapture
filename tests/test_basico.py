@@ -192,4 +192,25 @@ class Herramientas(unittest.TestCase):
             r, e = herramientas.vertical(v, salida, "desenfoque", 0.5, c)
             if r is None: self.assertEqual(e, "Cancelado."); self.assertEqual(os.listdir(d), ["v.mp4"])
 
+class MarcoVertical(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+    def test_marco_vertical_es_9_16_exacto_par_y_cabe_en_la_pantalla(self):
+        from PySide6.QtCore import QPoint
+        from screencapture import selector
+        s = selector.Selector(None, (), True); s.resize(1366, 768)
+        for centro in (QPoint(0, 0), QPoint(683, 384), QPoint(1366, 768)):
+            s.centro = centro
+            for escala in (0.3, 0.5, 0.92, 1.0):
+                s.escala = escala; r = s.marco_vertical()
+                self.assertEqual(r.width() * 16, r.height() * 9); self.assertEqual((r.width() % 2, r.height() % 2), (0, 0)); self.assertTrue(0 <= r.left() and r.right() < 1366 and 0 <= r.top() and r.bottom() < 768)
+    def test_el_marco_visible_nunca_toca_la_zona_grabada(self):
+        from PySide6.QtCore import QRect
+        from screencapture import marco
+        for z in (QRect(450, 60, 432, 646), QRect(0, 0, 400, 300), QRect(900, 400, 466, 368)):
+            seg = marco.segmentos(z, 1366, 768); self.assertTrue(all(not r.intersects(z) for r in seg)); self.assertTrue(all(QRect(0, 0, 1366, 768).contains(r) for r in seg))
+
 if __name__ == "__main__": unittest.main()

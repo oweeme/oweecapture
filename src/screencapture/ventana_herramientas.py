@@ -39,6 +39,7 @@ class VentanaHerramientas(QDialog):
         self.dur = m[3] if m else 0.0; self.t_ini.setText("0:00"); self.t_fin.setText(herramientas.a_texto(self.dur) if self.dur else ""); self.miniaturas()
     def recorte_cambia(self):
         [w.setEnabled(self.recorte.isChecked()) for w in self.panel_recorte]
+        [w.setVisible(self.recorte.isChecked()) for w in (self.m_ini, self.m_fin)]; self.adjustSize()          # sin recortar no se reserva el hueco de las miniaturas
         if self.recorte.isChecked(): self.miniaturas()
     def tiempo(self, campo, por_defecto):
         try: return herramientas.a_segundos(campo.text())

@@ -4,13 +4,14 @@ from PySide6.QtCore import QObject, QRect, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QLineEdit, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
-from . import atajos, burbuja, captura, clips, core, directo, kwin, ventana_herramientas, portal, presentacion, selector, servicio
+from . import atajos, burbuja, captura, clips, core, directo, kwin, marco, ventana_herramientas, portal, presentacion, selector, servicio
 from .i18n import _
 
 CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
 FOTOGRAMAS = [24, 30, 60]
 ZOOMS = [(0, _("Sin zoom")), (1.5, "1,5×"), (2, "2×"), (2.5, "2,5×")]
 RUIDOS = [(0, _("Sin reducción")), (1, _("Suave (ventilador, zumbido)")), (2, _("Fuerte (también corta el ruido entre frases)"))]
+FORMATOS = [("libre", _("Libre (arrastrar una zona o pantalla completa)")), ("vertical", _("Vertical 9:16 (TikTok, Shorts, Reels)"))]
 LIMITES = [(0, _("Sin límite")), (16, _("16 MB (WhatsApp)")), (50, _("50 MB")), (100, _("100 MB"))]
 
 class Puente(QObject):
@@ -26,17 +27,18 @@ class Ventana(QWidget):
         self.camara = QCheckBox(_("Cámara en burbuja (mientras se graba)")); self.camara.setChecked(self.cfg["camera"]); self.camara.toggled.connect(lambda on: self.cambiar_camara(on and self.grab.corriendo))
         self.fps = QComboBox(); [self.fps.addItem(f"{n} fps", n) for n in FOTOGRAMAS]; self.fps.setCurrentIndex(max(0, self.fps.findData(self.cfg["fps"])))
         self.limite = QComboBox(); [self.limite.addItem(t, n) for n, t in LIMITES]; self.limite.setCurrentIndex(max(0, self.limite.findData(self.cfg["max_mb"]))); self.calidad.currentIndexChanged.connect(self.perfil_cambia); self.perfil_cambia()
+        self.formato = QComboBox(); [self.formato.addItem(t, k) for k, t in FORMATOS]; self.formato.setCurrentIndex(max(0, self.formato.findData(self.cfg["formato"])))
         self.clip_seg = QComboBox(); [self.clip_seg.addItem(f"{n} s", n) for n in clips.OPCIONES]; self.clip_seg.setCurrentIndex(max(0, self.clip_seg.findData(self.cfg["clip_seg"])))
         self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
         self.ruido = QComboBox(); [self.ruido.addItem(t, n) for n, t in RUIDOS]; self.ruido.setCurrentIndex(max(0, self.ruido.findData(self.cfg["ruido"]))); self.mic.toggled.connect(self.ruido.setEnabled); self.ruido.setEnabled(self.mic.isChecked())
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
-        form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); form.addRow(self.efectos_camara()); lay.addLayout(form)
+        form.addRow(_("Zona al grabar"), self.formato); form.addRow(_("Calidad"), self.calidad); form.addRow(_("Fotogramas"), self.fps); form.addRow(_("Tamaño máximo"), self.limite); form.addRow(_("Zoom con Ctrl+Alt+Z"), self.zoom); form.addRow(_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg); form.addRow(self.halo); form.addRow(self.sistema); form.addRow(_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)); form.addRow(self.mic); form.addRow(_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)); form.addRow(_("Ruido del micrófono"), self.ruido); form.addRow(self.camara); form.addRow(self.efectos_camara()); lay.addLayout(form)
         self.boton = QPushButton(_("Grabar")); self.boton.clicked.connect(self.alternar); self.pres = QPushButton(_("Modo presentación")); self.pres.clicked.connect(self.presentacion)
         self.cap = QPushButton(_("Captura de pantalla")); self.cap.clicked.connect(self.captura); self.herr = QPushButton(_("Herramientas de vídeo (vertical 9:16, cortar silencios)")); self.herr.clicked.connect(self.herramientas); self.ultimo = ""
         self.pausa = QPushButton(_("Pausar")); self.pausa.setEnabled(False); self.pausa.clicked.connect(self.pausar)
-        self.estado = QLabel(""); self.estado.setWordWrap(True); self.directo_activo = None; [lay.addWidget(w) for w in (self.boton, self.pausa, self.panel_directo(), self.cap, self.pres, self.herr, self.estado)]
+        self.estado = QLabel(""); self.estado.setWordWrap(True); self.directo_activo = None; self.zona_grabada = None; self.marco = None; [lay.addWidget(w) for w in (self.boton, self.pausa, self.panel_directo(), self.cap, self.pres, self.herr, self.estado)]
         self.reloj = QTimer(self); self.reloj.timeout.connect(self.tic)
-        kwin.mantener_encima([burbuja_titulo(), presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
+        kwin.mantener_encima([burbuja_titulo(), marco.TITULO, presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
         self.tray = bandeja(self)
         self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Atajos no disponibles: ") + m)); self.atajos.iniciar()
 
@@ -81,13 +83,13 @@ class Ventana(QWidget):
         if core.have("notify-send"): subprocess.Popen(["notify-send", "-i", "screencapture", titulo, texto], stderr=subprocess.DEVNULL)
         else: self.tray.showMessage(titulo, texto, QSystemTrayIcon.Information, 2500)
 
-    def con_selector(self, fondo, al_elegir):
+    def con_selector(self, fondo, al_elegir, vertical=False):
         """Muestra el selector (sobre `fondo` congelado, o sobre el escritorio en vivo si es None) y llama a `al_elegir(zona | None)`; Esc cancela."""
         if self.selector: return
         self.selector = True                                                      # reserva: evita abrir dos selectores mientras KWin responde
-        kwin.listar_ventanas(lambda ventanas: self.mostrar_selector(fondo, ventanas, al_elegir))
-    def mostrar_selector(self, fondo, ventanas, al_elegir):
-        self.selector = selector.Selector(fondo, ventanas); self.selector.elegido.connect(lambda z: (setattr(self, "selector", None), al_elegir(z)))
+        kwin.listar_ventanas(lambda ventanas: self.mostrar_selector(fondo, ventanas, al_elegir, vertical))
+    def mostrar_selector(self, fondo, ventanas, al_elegir, vertical=False):
+        self.selector = selector.Selector(fondo, ventanas, vertical); self.selector.elegido.connect(lambda z: (setattr(self, "selector", None), al_elegir(z)))
         self.selector.cancelado.connect(lambda: (setattr(self, "selector", None), self.estado.setText(_("Cancelado.")), self.boton.setEnabled(True), self.mostrar())); self.selector.showFullScreen()
 
     def esconder(self, despues):
@@ -116,7 +118,7 @@ class Ventana(QWidget):
         return directo.ocultar(str(texto), self.d_clave.text().strip())
 
     def guardar(self):
-        self.cfg.update(clip_seg=self.clip_seg.currentData(), directo_plataforma=self.d_plat.currentData(), directo_url=self.d_url.text().strip(), directo_clave=self.d_clave.text().strip() if self.d_recordar.isChecked() else "", directo_recordar=self.d_recordar.isChecked(), directo_calidad=self.d_calidad.currentData(), quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked(), zoom=self.zoom.currentData(), halo=self.halo.isChecked(), vol_sistema=self._vol_sistema.value(), vol_mic=self._vol_mic.value(), ruido=self.ruido.currentData(), **{"cam_" + k: v for k, v in self.opciones_camara().items()}); core.save_cfg(self.cfg)
+        self.cfg.update(formato=self.formato.currentData(), clip_seg=self.clip_seg.currentData(), directo_plataforma=self.d_plat.currentData(), directo_url=self.d_url.text().strip(), directo_clave=self.d_clave.text().strip() if self.d_recordar.isChecked() else "", directo_recordar=self.d_recordar.isChecked(), directo_calidad=self.d_calidad.currentData(), quality=self.calidad.currentData(), fps=self.fps.currentData(), max_mb=self.limite.currentData() if self.limite.isEnabled() else 0, audio_system=self.sistema.isChecked(), audio_mic=self.mic.isChecked(), camera=self.camara.isChecked(), zoom=self.zoom.currentData(), halo=self.halo.isChecked(), vol_sistema=self._vol_sistema.value(), vol_mic=self._vol_mic.value(), ruido=self.ruido.currentData(), **{"cam_" + k: v for k, v in self.opciones_camara().items()}); core.save_cfg(self.cfg)
 
     def efectos_camara(self):
         """Panel plegable con los efectos de la burbuja (forma, borde, espejo, brillo, contraste, fondo); los cambios se ven al instante en la burbuja si está abierta."""
@@ -186,8 +188,9 @@ class Ventana(QWidget):
 
     def empezar(self):
         """Pide la zona (o pantalla completa) sobre el escritorio en vivo y empieza a grabar; el mismo atajo vuelve a llamar a alternar() y detiene."""
-        self.guardar(); self.boton.setEnabled(False); self.esconder(lambda: self.con_selector(None, self.empezar_en))
+        self.guardar(); self.boton.setEnabled(False); self.esconder(lambda: self.con_selector(None, self.empezar_en, self.cfg["formato"] == "vertical"))
     def empezar_en(self, zona):
+        self.zona_grabada = zona
         self.estado.setText(_("Eligiendo la pantalla…"))              # la ventana sigue oculta: no debe salir en el vídeo
         self.grab.iniciar(self.cfg["quality"], self.cfg["fps"], self.cfg["audio_system"], self.cfg["audio_mic"], self.al_empezar, self.al_fallar, zona, lambda ruta, err: self.puente.terminado.emit(ruta, err), self.cfg["max_mb"], (self.cfg["zoom"] or 1, self.cfg["halo"]), self.geometria_pantalla(), (self.cfg["vol_sistema"] / 100, self.cfg["vol_mic"] / 100, self.cfg["ruido"]), self.directo_activo)
 
@@ -196,12 +199,17 @@ class Ventana(QWidget):
         g = QApplication.primaryScreen().geometry(); return (g.x(), g.y(), g.width(), g.height())
 
     def al_empezar(self):
+        if self.zona_grabada: self.marco = marco.Marco(self.zona_grabada); self.marco.mostrar()          # la línea queda fuera de la zona: no sale en el vídeo
         self.boton.setText(_("Detener")); self.boton.setEnabled(True); self.pausa.setEnabled(not self.directo_activo); self.b_directo.setText(_("Detener la transmisión") if self.directo_activo else self.b_directo.text()); self.b_directo.setEnabled(bool(self.directo_activo)); self.reloj.start(500)
         if self.camara.isChecked(): self.cambiar_camara(True)          # la burbuja vive solo mientras se graba
         self.tic()
     def al_fallar(self, mensaje): self.fin_grabacion(); mensaje = self.sin_clave(mensaje); self.estado.setText(mensaje); self.mostrar()
     def fin_grabacion(self):
-        self.reloj.stop(); self.cambiar_camara(False); self.directo_activo = None; self.b_directo.setText(_("Transmitir en directo")); self.b_directo.setEnabled(True); self.boton.setText(_("Grabar")); self.boton.setEnabled(True); self.pausa.setEnabled(False); self.pausa.setText(_("Pausar")); self.refrescar_bandeja()
+        self.cerrar_marco(); self.reloj.stop(); self.cambiar_camara(False); self.directo_activo = None; self.b_directo.setText(_("Transmitir en directo")); self.b_directo.setEnabled(True); self.boton.setText(_("Grabar")); self.boton.setEnabled(True); self.pausa.setEnabled(False); self.pausa.setText(_("Pausar")); self.refrescar_bandeja()
+
+    def cerrar_marco(self):
+        m, self.marco = getattr(self, "marco", None), None
+        if m: m.close()
 
     def tic(self):
         s = self.grab.segundos(); t = f"{s // 60:02d}:{s % 60:02d}"; self.estado.setText((_("En pausa… {0}") if self.grab.pausada else _("EN DIRECTO… {0}") if self.grab.directo else _("Grabando… {0}")).replace("{0}", t)); self.refrescar_bandeja(t)
