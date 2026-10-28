@@ -41,7 +41,7 @@ case " $FAM " in
         PAQ="python python-gobject python-dbus gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire ffmpeg pipewire xdg-desktop-portal mesa libxkbcommon fontconfig dbus"
         INSTALAR="pacman -S --noconfirm --needed" ;;
     *" suse "*|*" opensuse "*|*" sles "*) GESTOR=zypper
-        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3 libglib-2_0-0 libgobject-2_0-0 libgthread-2_0-0 libgio-2_0-0"
+        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3 libglib-2_0-0 libgobject-2_0-0 libgthread-2_0-0 libgio-2_0-0 typelib-1_0-Gst-1_0"
         INSTALAR="zypper --non-interactive install" ;;
     *) GESTOR=""; PAQ=""; INSTALAR="" ;;
 esac
