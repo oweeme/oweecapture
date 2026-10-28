@@ -17,19 +17,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar dependencias
+      - name: Instalar dependencias del sistema
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            python3-pyside6.qtcore python3-pyside6.qtgui python3-pyside6.qtwidgets python3-pyside6.qtdbus \
-            python3-gi python3-dbus gir1.2-gstreamer-1.0 \
+            python3-venv python3-gi python3-dbus gir1.2-gstreamer-1.0 \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav \
-            ffmpeg dbus fonts-dejavu-core libegl1 libgl1 libxkbcommon0
+            ffmpeg dbus fonts-dejavu-core libegl1 libgl1 libxkbcommon0 libfontconfig1
+
+      # Ubuntu 24.04 no trae PySide6 en apt (KDE neon y Debian 13 sí): se instala de PyPI en un entorno que ve los paquetes del sistema (gi, dbus)
+      - name: Instalar PySide6 desde PyPI
+        run: |
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/pip install --quiet PySide6-Essentials
+          .venv/bin/python -c "import PySide6; print('PySide6', PySide6.__version__)"
 
       - name: Pruebas (sesión de bus limpia, sin pantalla)
         run: |
           dbus-run-session -- env QT_QPA_PLATFORM=offscreen OWEECAPTURE_SIN_ATAJOS=1 PYTHONPATH=src \
-            python3 -W ignore -m unittest discover -s tests -v
+            .venv/bin/python -W ignore -m unittest discover -s tests -v
 
       - name: Construir el paquete .deb
         run: ./packaging/crear_deb.sh 0.0.0-ci

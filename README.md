@@ -7,9 +7,9 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 **Estado:** versión 0.1, extraída de la «Capturadora» de OweeLinux. Hoy funciona en compositores basados en wlroots (labwc, sway, Hyprland, River…). El plan para llegar a GNOME y KDE está en [PLAN.md](PLAN.md).
 
 ## Instalar
-**Debian, Ubuntu, KDE neon, Mint y derivadas (Wayland):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb` (apt instala también las dependencias). Se construye con `packaging/crear_deb.sh` y GitHub Actions lo publica al crear una etiqueta `vX.Y.Z` (`.github/workflows/`: las pruebas corren en cada subida).
+**KDE neon, Debian 13 o posterior, Ubuntu 25.04 o posterior y derivadas (Wayland):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb` (apt instala también las dependencias). Hacen falta los paquetes `python3-pyside6.*` de la distribución. **Ubuntu 24.04 y anteriores no los traen**, así que el `.deb` no se puede instalar ahí tal cual: usa «Desde el código» con PySide6 de PyPI (`python3 -m venv --system-site-packages .venv && .venv/bin/pip install PySide6-Essentials`). Se construye con `packaging/crear_deb.sh` y GitHub Actions lo publica al crear una etiqueta `vX.Y.Z` (`.github/workflows/`: las pruebas corren en cada subida).
 
-**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp` (dependencias abajo).
+**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp` (dependencias abajo). Sirve en cualquier distribución con Wayland, portal de pantalla y PipeWire.
 
 **Windows: todavía no hay instalador, y no se puede fingir uno.** OweeCapture depende del portal de pantalla de Linux (xdg-desktop-portal + PipeWire), de GStreamer y de D-Bus. Portarlo a Windows exige escribir otra captura (ffmpeg `ddagrab`/`gdigrab`), el audio del sistema (WASAPI), los atajos globales (`RegisterHotKey`) y probarlo en un Windows real: es el hito M5b del [plan](PLAN.md). Un instalador sin eso se abriría y no grabaría nada.
 
