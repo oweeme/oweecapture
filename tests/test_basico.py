@@ -1,6 +1,7 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
 import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+os.environ.setdefault("SCREENCAPTURE_SIN_ATAJOS", "1")          # crear la ventana en una prueba no debe registrar atajos globales en el KDE del usuario
 from screencapture import audio, clips, core, directo, efectos, herramientas, i18n, ruido_vivo
 
 class Calidades(unittest.TestCase):
@@ -216,6 +217,54 @@ class RuidoVivo(unittest.TestCase):
             if not ruido_vivo._hay_nodo(): break
             time.sleep(0.25)
         self.assertFalse(ruido_vivo._hay_nodo()); l.detener()          # parar dos veces no falla
+
+class Presentacion(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+    def _ev(self, tipo, p, boton=None):
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        tipos = {"p": QEvent.MouseButtonPress, "m": QEvent.MouseMove, "r": QEvent.MouseButtonRelease}; b = boton or Qt.LeftButton; return QMouseEvent(tipos[tipo], QPointF(*p), QPointF(*p), b, b if tipo != "r" else Qt.NoButton, Qt.NoModifier)
+    def _trazo(self, d, a, b):
+        d.mousePressEvent(self._ev("p", a)); d.mouseMoveEvent(self._ev("m", ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))); d.mouseMoveEvent(self._ev("m", b)); d.mouseReleaseEvent(self._ev("r", b))
+    def test_seis_herramientas_deshacer_borrar_y_clic_suelto(self):
+        from screencapture import presentacion as P
+        d = P.Dibujo(); d.resize(800, 500); d.show()
+        for h, (a, b) in zip(("lapiz", "resaltador", "flecha", "marco", "elipse"), (((10, 10), (200, 60)), ((10, 80), (200, 80)), ((10, 150), (200, 100)), ((300, 10), (500, 120)), ((300, 150), (500, 260)))): d.herramienta_es(h); self._trazo(d, a, b)
+        d.herramienta_es("texto"); d.mousePressEvent(self._ev("p", (50, 400))); d.editor.setText("Hola"); d.editor.returnPressed.emit()
+        self.assertEqual([e["t"] for e in d.trazos], ["lapiz", "resaltador", "flecha", "marco", "elipse", "texto"]); self.assertEqual(d.trazos[-1]["texto"], "Hola")
+        d.herramienta_es("marco"); d.mousePressEvent(self._ev("p", (5, 5))); d.mouseReleaseEvent(self._ev("r", (5, 5))); self.assertEqual(len(d.trazos), 6)          # un clic suelto no deja una figura de tamaño cero
+        d.deshacer(); self.assertEqual(len(d.trazos), 5); d.borrar(); self.assertEqual(d.trazos, []); d.close()
+    def test_texto_vacio_o_cancelado_no_deja_nada_y_color_y_grosor_se_aplican(self):
+        from screencapture import presentacion as P
+        d = P.Dibujo(); d.resize(400, 300); d.show(); d.herramienta_es("texto"); d.mousePressEvent(self._ev("p", (50, 50))); d.editor.setText("   "); d.editor.returnPressed.emit(); self.assertEqual(d.trazos, [])
+        d.mousePressEvent(self._ev("p", (50, 50))); d.cerrar_editor(); self.assertIsNone(d.editor); d.herramienta_es("flecha"); d.color_es("#2A7FFF"); d.grosor_es(10); self._trazo(d, (10, 10), (200, 100))
+        self.assertEqual((d.trazos[0]["c"], d.trazos[0]["w"]), ("#2A7FFF", 10)); d.close()
+    def test_la_punta_de_la_flecha_apunta_al_destino_y_crece_con_el_grosor(self):
+        from PySide6.QtCore import QPointF
+        from screencapture import presentacion as P
+        a, b = QPointF(0, 0), QPointF(100, 0); c3, c10 = P.cabeza_de_flecha(a, b, 3), P.cabeza_de_flecha(a, b, 10)
+        self.assertEqual(c3[0], b); self.assertGreater(abs(c10[1].y()), abs(c3[1].y())); self.assertLess(c3[1].x(), 100)
+
+class VentanaPrincipal(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+    def test_pestanas_clave_oculta_y_datos_del_autor(self):
+        from PySide6.QtWidgets import QLineEdit
+        from screencapture import autor, kwin, qtapp
+        v = qtapp.Ventana(); v.show()
+        try:
+            self.assertEqual([v.pestanas.tabText(i) for i in range(3)], ["Grabar", "Audio y cámara", "Directo"])
+            self.assertEqual(v.d_clave.echoMode(), QLineEdit.Password); v.ver_clave.setChecked(True); self.assertEqual(v.d_clave.echoMode(), QLineEdit.Normal)
+            v.hide(); self.assertEqual(v.d_clave.echoMode(), QLineEdit.Password); self.assertFalse(v.ver_clave.isChecked())          # al ocultar la ventana, la clave vuelve a taparse
+            self.assertIn("@", autor.EMAIL); self.assertTrue(autor.WEB.startswith("https://")); self.assertTrue(autor.NOMBRE)
+        finally: kwin.descargar_todo()
 
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")

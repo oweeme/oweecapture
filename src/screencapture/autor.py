@@ -1,0 +1,7 @@
+"""Datos del autor y del proyecto que muestra la ventana «Acerca de». Se cambian aquí, en un solo sitio."""
+NOMBRE = "Hector Martinez"
+EMAIL = "hector@oweeme.com"
+WEB = "https://oweeme.com"
+VERSION = "0.1.0"
+LICENCIA = "GPL-3.0-or-later"
+DESCRIPCION = "Capturas, grabación de pantalla, directos y herramientas para publicar vídeos (YouTube Shorts, TikTok, Reels)."
