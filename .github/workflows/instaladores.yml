@@ -53,7 +53,7 @@ jobs:
       - name: El entorno propio ve los paquetes del sistema (gi, dbus, oweecapture) aunque su Python no los incluya
         run: |
           if [ -x /opt/oweecapture/venv/bin/python ]; then
-            /usr/bin/python3 -m venv --without-system-site-packages /tmp/entorno-aislado     # un Python que NO ve /usr/lib/python3/dist-packages, como el de algunos Deepin
+            /usr/bin/python3 -m venv /tmp/entorno-aislado     # un Python que NO ve /usr/lib/python3/dist-packages, como el de algunos Deepin
             SP=$(/tmp/entorno-aislado/bin/python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
             ! /tmp/entorno-aislado/bin/python -c "import oweecapture" 2>/dev/null           # sin el .pth no lo ve (reproduce el fallo)
             echo /usr/lib/python3/dist-packages > "$SP/oweecapture-sistema.pth"            # el mismo mecanismo que escribe la instalación
