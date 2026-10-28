@@ -8,6 +8,8 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 
 ## Qué hace hoy (interfaz Qt, probada en KDE neon con Plasma 6 en Wayland)
 
+**Atajos desde que arranca el escritorio:** activa «Iniciar OweeCapture al abrir la sesión» (pestaña *Grabar*, bloque *Al iniciar sesión*): crea `~/.config/autostart/oweecapture.desktop`, que arranca la aplicación en segundo plano (solo el icono de la bandeja y los atajos) y así `Ctrl+Alt+R`, `Ctrl+Alt+S`, etc. responden desde el primer momento, sin abrir la ventana. Si prefieres no tenerla siempre en marcha, el lanzador trae acciones (*Take a screenshot*, *Start or stop recording*, *Presentation mode*) a las que puedes asignar un atajo en los ajustes de tu escritorio: lanzan la aplicación si no está abierta.
+
 **Ventana:** tres pestañas con scroll (*Grabar*, *Audio y cámara*, *Directo*), los botones de grabar y pausar siempre a la vista, el botón «Mostrar» para ver u ocultar la clave de transmisión (se vuelve a tapar al ocultar la ventana y al empezar un directo) y «Acerca de» con el autor. Los datos del autor están en `src/oweecapture/autor.py`.
 - `Ctrl+Alt+S` o `oweecapture --shot`: captura por el portal del escritorio, con selector de zona (arrastrar; Enter o Espacio para toda la pantalla; Esc cancela). Se guarda en Imágenes/Screenshots y se copia al portapapeles.
 - `Ctrl+Alt+R` o `oweecapture --record`: elige la zona y empieza a grabar; otra vez para detener. Audio del sistema y micrófono, cuatro niveles de calidad (la reducción se hace al terminar, en segundo plano), pausa y continuar desde el icono de la bandeja. La ventana se oculta mientras se graba.

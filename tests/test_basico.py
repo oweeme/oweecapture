@@ -2,7 +2,7 @@
 import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ.setdefault("OWEECAPTURE_SIN_ATAJOS", "1")          # crear la ventana en una prueba no debe registrar atajos globales en el KDE del usuario
-from oweecapture import audio, clips, core, directo, efectos, entrada, herramientas, i18n, ruido_vivo, subtitulos
+from oweecapture import audio, clips, core, directo, efectos, entrada, herramientas, i18n, inicio, ruido_vivo, subtitulos
 
 class Calidades(unittest.TestCase):
     def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
@@ -343,6 +343,19 @@ class Subtitulos(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             w = os.path.join(d, "t.wav"); subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=f=440:d=3", w], check=True)
             palabras, _idi, err = subtitulos.transcribir(w, "es"); self.assertIsNone(err); self.assertEqual(palabras, [])
+
+class InicioConElEscritorio(unittest.TestCase):
+    def test_activar_y_desactivar_con_una_carpeta_falsa(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(inicio.activado(d)); inicio.activar(d); self.assertTrue(inicio.activado(d)); txt = open(inicio.ruta(d)).read()
+            self.assertTrue(txt.startswith("[Desktop Entry]\nType=Application\nName=OweeCapture")); self.assertIn("--segundo-plano", txt); self.assertIn("oweecapture", [l for l in txt.splitlines() if l.startswith("Exec=")][0])
+            self.assertEqual(os.listdir(os.path.dirname(inicio.ruta(d))), ["oweecapture.desktop"]); inicio.activar(d)          # activar dos veces no falla ni deja archivos temporales
+            inicio.desactivar(d); self.assertFalse(inicio.activado(d)); inicio.desactivar(d)          # quitar dos veces tampoco
+    def test_la_orden_arranca_en_segundo_plano_y_apunta_a_este_codigo_si_no_esta_instalado(self):
+        real = inicio.shutil.which; inicio.shutil.which = lambda n: None
+        try: c = inicio.comando()
+        finally: inicio.shutil.which = real
+        self.assertIn("PYTHONPATH=", c); self.assertIn("-m oweecapture.qtapp --segundo-plano", c)
 
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")

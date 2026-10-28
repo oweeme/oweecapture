@@ -4,7 +4,7 @@ from PySide6.QtCore import QObject, QPointF, QRect, QSize, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGroupBox, QMenu, QScrollArea, QSystemTrayIcon, QTabWidget, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QLineEdit, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
-from . import atajos, autor, burbuja, captura, clips, core, directo, efectos_pantalla, entrada, kwin, marco, ventana_herramientas, portal, presentacion, selector, servicio
+from . import atajos, autor, burbuja, captura, clips, core, directo, efectos_pantalla, entrada, inicio, kwin, marco, ventana_herramientas, portal, presentacion, selector, servicio
 from .i18n import _
 
 CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
@@ -33,6 +33,8 @@ class Ventana(QWidget):
         self.clics = QCheckBox(_("Resaltar los clics del ratón")); self.clics.setChecked(self.cfg["clics"]); self.teclas_modo = QComboBox(); [self.teclas_modo.addItem(t, k) for k, t in TECLAS_MODOS]; self.teclas_modo.setCurrentIndex(max(0, self.teclas_modo.findData(self.cfg["teclas"])))
         self.ayuda_input = QLabel(_("Para esto hace falta que tu usuario esté en el grupo «input» (el sistema no deja leer el ratón y el teclado de otro modo). En una terminal: sudo usermod -aG input $USER  y vuelve a iniciar sesión. Solo se lee mientras grabas o transmites y no se guarda nada.")); self.ayuda_input.setWordWrap(True); self.ayuda_input.setStyleSheet("color: #d98324;")
         self.clics.toggled.connect(self.actualizar_ayuda_input); self.teclas_modo.currentIndexChanged.connect(self.actualizar_ayuda_input); self.actualizar_ayuda_input()
+        self.autoinicio = QCheckBox(_("Iniciar OweeCapture al abrir la sesión (los atajos funcionan siempre)")); self.autoinicio.setChecked(inicio.activado()); self.autoinicio.setToolTip(_("Crea un archivo en ~/.config/autostart. Arranca solo con el icono de la bandeja y los atajos, sin abrir la ventana."))
+        self.autoinicio.toggled.connect(self.cambiar_autoinicio)
         self.zoom = QComboBox(); [self.zoom.addItem(t, n) for n, t in ZOOMS]; self.zoom.setCurrentIndex(max(0, self.zoom.findData(self.cfg["zoom"]))); self.halo = QCheckBox(_("Resaltar el cursor")); self.halo.setChecked(self.cfg["halo"])
         self.ruido = QComboBox(); [self.ruido.addItem(t, n) for n, t in RUIDOS]; self.ruido.setCurrentIndex(max(0, self.ruido.findData(self.cfg["ruido"]))); self.mic.toggled.connect(self.ruido.setEnabled); self.ruido.setEnabled(self.mic.isChecked()); self.ruido.setToolTip(_("Al grabar se aplica al guardar el vídeo; en directo se usa el cancelador de ruido de PipeWire (WebRTC), que se activa solo mientras transmites."))
         if not kwin.disponible(): self.zoom.setEnabled(False); self.halo.setEnabled(False); self.zoom.setToolTip(_("Disponible solo en KDE Plasma (necesita leer la posición del cursor).")); self.halo.setToolTip(self.zoom.toolTip())
@@ -46,7 +48,7 @@ class Ventana(QWidget):
             w = QWidget(); v = QVBoxLayout(w); [v.addWidget(x) for x in bloques]; v.addStretch(1); sc = QScrollArea(); sc.setWidgetResizable(True); sc.setFrameShape(QFrame.NoFrame); sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sc.setWidget(w); return sc
         efectos = self.efectos_camara(); self.camara.toggled.connect(efectos.setEnabled); efectos.setEnabled(self.camara.isChecked())
         self.pestanas = QTabWidget(); self.pestanas.addTab(pagina(grupo(_("Qué grabar"), (_("Zona al grabar"), self.formato), (_("Calidad"), self.calidad), (_("Fotogramas"), self.fps), (_("Tamaño máximo"), self.limite)),
-                                                               grupo(_("Ayudas para tutoriales"), (_("Zoom con Ctrl+Alt+Z"), self.zoom), (_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg), self.halo, self.clics, (_("Mostrar teclas"), self.teclas_modo), self.ayuda_input)), _("Grabar"))
+                                                               grupo(_("Ayudas para tutoriales"), (_("Zoom con Ctrl+Alt+Z"), self.zoom), (_("Clip con Ctrl+Alt+G: últimos"), self.clip_seg), self.halo, self.clics, (_("Mostrar teclas"), self.teclas_modo), self.ayuda_input), grupo(_("Al iniciar sesión"), self.autoinicio)), _("Grabar"))
         self.pestanas.addTab(pagina(grupo(_("Audio"), self.sistema, (_("Volumen del sistema"), self.deslizador("vol_sistema", self.sistema)), self.mic, (_("Volumen del micrófono"), self.deslizador("vol_mic", self.mic)), (_("Ruido del micrófono"), self.ruido)),
                                     grupo(_("Cámara"), self.camara), efectos), _("Audio y cámara"))
         self.pestanas.addTab(pagina(self.panel_directo()), _("Directo")); lay.addWidget(self.pestanas, 1)
@@ -236,6 +238,11 @@ class Ventana(QWidget):
         e = self.grab.estado_red if self.grab.directo else ""
         if e != getattr(self, "_red_vista", "") and e.startswith(("Sin conexión", "Conectado (reconexiones")): self.avisar("OweeCapture", _(e))
         self._red_vista = e
+
+    def cambiar_autoinicio(self, on):
+        """Activa o quita el arranque con el escritorio al momento (no espera a guardar)."""
+        try: inicio.activar() if on else inicio.desactivar(); self.estado.setText(_("Se iniciará con el escritorio: los atajos estarán activos desde el primer momento.") if on else _("Ya no se inicia con el escritorio."))
+        except OSError as e: self.estado.setText(_("No se pudo cambiar el inicio automático: ") + str(e)); self.autoinicio.blockSignals(True); self.autoinicio.setChecked(inicio.activado()); self.autoinicio.blockSignals(False)
 
     def actualizar_ayuda_input(self):
         """La nota del grupo «input» solo se ve si se pide algo que la necesita y falta el permiso."""
