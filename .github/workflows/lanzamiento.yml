@@ -38,4 +38,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "OweeCapture $VERSION" \
             --generate-notes \
-            --notes "Instalación en Debian, Ubuntu, KDE neon y derivadas: \`sudo apt install ./oweecapture_${VERSION}_all.deb\`. Solo Linux con Wayland; Windows todavía no está soportado."
+            --notes "Instalación: \`sudo apt install ./oweecapture_${VERSION}_all.deb\` en KDE neon, Debian 13 o posterior, Ubuntu 25.04 o posterior y derivadas (necesitan los paquetes \`python3-pyside6.*\` de la distribución). Ubuntu 24.04 y anteriores no los traen: instala desde el código con PySide6 de PyPI (ver el README). Solo Linux con Wayland; Windows todavía no está soportado."
