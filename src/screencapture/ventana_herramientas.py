@@ -1,9 +1,8 @@
 """Ventana «Herramientas de vídeo»: elige un vídeo (por defecto el último grabado) y crea una versión recortada, vertical 9:16 para Shorts, TikTok y Reels y/o sin silencios. Siempre escribe archivos nuevos al lado del original."""
-import glob, os, subprocess, tempfile, threading
+import glob, os, subprocess, threading
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QCheckBox, QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QProgressBar, QPushButton, QSlider, QVBoxLayout
-from . import core, herramientas
+from . import core, herramientas, reproductor
 from .i18n import _
 
 def ultimo_video():
@@ -18,11 +17,13 @@ class VentanaHerramientas(QDialog):
     def __init__(self, archivo="", padre=None):
         super().__init__(padre); self.setWindowTitle(_("Herramientas de vídeo")); self.control = None; self.hilo = None; self.aviso = Aviso(); self.aviso.terminado.connect(self.al_terminar); lay = QVBoxLayout(self)
         fila = QHBoxLayout(); self.archivo = QLineEdit(archivo or ultimo_video()); b = QPushButton(_("Elegir…")); b.clicked.connect(self.elegir); fila.addWidget(self.archivo); fila.addWidget(b); lay.addWidget(QLabel(_("Vídeo"))); lay.addLayout(fila)
-        self.recorte = QCheckBox(_("Recortar el principio y el final")); self.t_ini = QLineEdit("0:00"); self.t_fin = QLineEdit(); self.exacto = QCheckBox(_("Corte exacto (más lento: recodifica)")); self.exacto.setChecked(True)
-        self.m_ini = QLabel(); self.m_fin = QLabel(); [m.setFixedSize(240, 135) for m in (self.m_ini, self.m_fin)]; [m.setAlignment(Qt.AlignCenter) for m in (self.m_ini, self.m_fin)]; self.dur = 0.0
-        tiempos = QHBoxLayout(); [tiempos.addWidget(x) for x in (QLabel(_("Inicio")), self.t_ini, QLabel(_("Fin")), self.t_fin)]; minis = QHBoxLayout(); minis.addWidget(self.m_ini); minis.addWidget(self.m_fin)
-        self.panel_recorte = [self.t_ini, self.t_fin, self.exacto, self.m_ini, self.m_fin]; self.recorte.toggled.connect(self.recorte_cambia); [t.editingFinished.connect(self.miniaturas) for t in (self.t_ini, self.t_fin)]; self.archivo.editingFinished.connect(self.cargar)
-        lay.addWidget(self.recorte); lay.addLayout(tiempos); lay.addWidget(self.exacto); lay.addLayout(minis)
+        self.rep = reproductor.Reproductor(); lay.addWidget(self.rep)
+        self.recorte = QCheckBox(_("Recortar el principio y el final")); self.t_ini = QLineEdit("0:00"); self.t_fin = QLineEdit(); self.exacto = QCheckBox(_("Corte exacto (más lento: recodifica)")); self.exacto.setChecked(True); self.dur = 0.0
+        self.b_ini = QPushButton(_("Aquí")); self.b_fin = QPushButton(_("Aquí")); self.b_ver = QPushButton(_("▶ Ver el tramo")); [b.setToolTip(t) for b, t in ((self.b_ini, _("Poner el inicio en la posición actual de la vista previa")), (self.b_fin, _("Poner el fin en la posición actual de la vista previa")))]
+        self.b_ini.clicked.connect(lambda: self.t_ini.setText(herramientas.a_texto(self.rep.segundos()))); self.b_fin.clicked.connect(lambda: self.t_fin.setText(herramientas.a_texto(self.rep.segundos()))); self.b_ver.clicked.connect(self.ver_tramo)
+        tiempos = QHBoxLayout(); [tiempos.addWidget(x) for x in (QLabel(_("Inicio")), self.t_ini, self.b_ini, QLabel(_("Fin")), self.t_fin, self.b_fin, self.b_ver)]
+        self.panel_recorte = [self.t_ini, self.t_fin, self.exacto, self.b_ini, self.b_fin, self.b_ver]; self.recorte.toggled.connect(self.recorte_cambia); self.archivo.editingFinished.connect(self.cargar)
+        lay.addWidget(self.recorte); lay.addLayout(tiempos); lay.addWidget(self.exacto)
         self.vertical = QCheckBox(_("Vertical 9:16 (YouTube Shorts, TikTok, Reels)")); self.vertical.setChecked(True); self.modo = QComboBox(); [self.modo.addItem(_(t), k) for k, t in herramientas.MODOS]
         self.pos = QSlider(Qt.Horizontal); self.pos.setRange(0, 100); self.pos.setValue(50); self.etq_pos = QLabel(_("Parte que queda: centro")); self.pos.valueChanged.connect(self.pos_cambia); self.modo.currentIndexChanged.connect(self.modo_cambia)
         self.silencios = QCheckBox(_("Cortar los silencios")); self.sens = QComboBox(); [self.sens.addItem(_(t), k) for k, t, _u, _m in herramientas.SILENCIOS]; self.sens.setCurrentIndex(1)
@@ -34,29 +35,20 @@ class VentanaHerramientas(QDialog):
         [lay.addWidget(x) for x in (self.barra, self.estado)]; lay.addLayout(botones); self.resultado = None; self.setMinimumWidth(460)
 
     def cargar(self):
-        """Lee la duración del vídeo elegido y pone el fin por defecto al final."""
-        m = herramientas.medidas(self.archivo.text().strip()) if os.path.isfile(self.archivo.text().strip()) else None
-        self.dur = m[3] if m else 0.0; self.t_ini.setText("0:00"); self.t_fin.setText(herramientas.a_texto(self.dur) if self.dur else ""); self.miniaturas()
-    def recorte_cambia(self):
-        [w.setEnabled(self.recorte.isChecked()) for w in self.panel_recorte]
-        [w.setVisible(self.recorte.isChecked()) for w in (self.m_ini, self.m_fin)]; self.adjustSize()          # sin recortar no se reserva el hueco de las miniaturas
-        if self.recorte.isChecked(): self.miniaturas()
-    def tiempo(self, campo, por_defecto):
-        try: return herramientas.a_segundos(campo.text())
-        except ValueError: return por_defecto
-    def miniaturas(self):
-        """Fotogramas de los instantes de inicio y fin elegidos, para ver dónde se corta."""
-        ruta = self.archivo.text().strip()
-        if not (self.recorte.isChecked() and os.path.isfile(ruta) and self.dur): self.m_ini.clear(); self.m_fin.clear(); return
-        with tempfile.TemporaryDirectory() as d:
-            for etiqueta, t in ((self.m_ini, self.tiempo(self.t_ini, 0.0)), (self.m_fin, max(0.0, self.tiempo(self.t_fin, self.dur) - 0.1))):
-                png = herramientas.fotograma(ruta, min(t, self.dur), os.path.join(d, "f.png"))
-                if png: etiqueta.setPixmap(QPixmap(png).scaled(240, 135, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                else: etiqueta.setText(_("(sin imagen)"))
+        """Abre el vídeo elegido en la vista previa, lee su duración y pone el fin por defecto al final."""
+        ruta = self.archivo.text().strip(); m = herramientas.medidas(ruta) if os.path.isfile(ruta) else None
+        self.dur = m[3] if m else 0.0; self.t_ini.setText("0:00"); self.t_fin.setText(herramientas.a_texto(self.dur) if self.dur else ""); self.rep.cargar(ruta if m else ""); self.modo_cambia()
+    def recorte_cambia(self): [w.setEnabled(self.recorte.isChecked()) for w in self.panel_recorte]
+    def ver_tramo(self):
+        """Reproduce en la vista previa justo el tramo que quedaría con el inicio y el fin escritos."""
+        try: ini = herramientas.a_segundos(self.t_ini.text()); fin = herramientas.a_segundos(self.t_fin.text())
+        except ValueError: self.estado.setText(_("Pon tiempos válidos, como 0:05 y 1:30.")); return
+        if fin <= ini: self.estado.setText(_("El fin debe ser mayor que el inicio.")); return
+        self.estado.setText(""); self.rep.ver_tramo(ini, fin)
 
     def modo_cambia(self):
-        recorte = self.vertical.isChecked() and self.modo.currentData() == "recorte"; self.modo.setEnabled(self.vertical.isChecked()); self.pos.setEnabled(recorte); self.etq_pos.setEnabled(recorte)
-    def pos_cambia(self, v): self.etq_pos.setText(_("Parte que queda: ") + (_("izquierda") if v < 20 else _("derecha") if v > 80 else _("centro") if 40 <= v <= 60 else f"{v} %"))
+        recorte = self.vertical.isChecked() and self.modo.currentData() == "recorte"; self.modo.setEnabled(self.vertical.isChecked()); self.pos.setEnabled(recorte); self.etq_pos.setEnabled(recorte); self.rep.poner_guia(self.pos.value() / 100 if recorte else None)          # la guía 9:16 se dibuja sobre la vista previa
+    def pos_cambia(self, v): self.rep.poner_guia(v / 100 if self.pos.isEnabled() else None); self.etq_pos.setText(_("Parte que queda: ") + (_("izquierda") if v < 20 else _("derecha") if v > 80 else _("centro") if 40 <= v <= 60 else f"{v} %"))
 
     def elegir(self):
         r, _f = QFileDialog.getOpenFileName(self, _("Elegir un vídeo"), os.path.dirname(self.archivo.text()) or core.DIR_VID, _("Vídeos") + " (*.mp4 *.mkv *.mov *.webm)")
@@ -69,7 +61,7 @@ class VentanaHerramientas(QDialog):
         try: ini = herramientas.a_segundos(self.t_ini.text()); fin = herramientas.a_segundos(self.t_fin.text())
         except ValueError: ini = fin = 0.0
         if self.recorte.isChecked() and fin - ini < 0.3: self.estado.setText(_("Pon tiempos válidos, como 0:05 y 1:30 (el fin debe ser mayor que el inicio).")); return
-        self.control = herramientas.Control(); self.crear.setEnabled(False); self.cancelar.setEnabled(True); self.carpeta.setEnabled(False); self.barra.setRange(0, 0); self.estado.setText(_("Procesando… (puede tardar según la duración)"))
+        self.rep.pausar(); self.control = herramientas.Control(); self.crear.setEnabled(False); self.cancelar.setEnabled(True); self.carpeta.setEnabled(False); self.barra.setRange(0, 0); self.estado.setText(_("Procesando… (puede tardar según la duración)"))
         opciones = dict(recorte=self.recorte.isChecked(), ini=ini, fin=fin, exacto=self.exacto.isChecked(), vertical=self.vertical.isChecked(), modo=self.modo.currentData(), pos=self.pos.value() / 100, silencios=self.silencios.isChecked(), sens=self.sens.currentData())
         self.hilo = threading.Thread(target=lambda: self.aviso.terminado.emit(*self.trabajo(ruta, opciones, self.control)), daemon=True); self.hilo.start()
 
@@ -104,3 +96,6 @@ class VentanaHerramientas(QDialog):
 
     def abrir_carpeta(self):
         if self.resultado: subprocess.Popen(["xdg-open", os.path.dirname(self.resultado)], stderr=subprocess.DEVNULL)
+
+    def done(self, r): self.rep.detener(); super().done(r)          # al cerrar, la vista previa deja de reproducir
+    def closeEvent(self, e): self.rep.detener(); super().closeEvent(e)

@@ -181,6 +181,25 @@ class Reconexion(unittest.TestCase):
             p.set_state(Gst.State.PLAYING); red.conectar(); esperar(20, lambda: perdidos)
             self._parar(Gst, p, bucle); self.assertEqual(len(perdidos), 1); self.assertFalse(red.alguna_vez); self.assertEqual(fatales, [])
 
+class VistaPrevia(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_reproductor_muestra_salta_y_para_donde_se_le_pide(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from screencapture import reproductor
+        app = QApplication.instance() or QApplication([])
+        def esperar(seg, hasta=None):
+            fin = time.time() + seg
+            while time.time() < fin and not (hasta and hasta()): app.processEvents(); time.sleep(0.02)
+        with tempfile.TemporaryDirectory() as d:
+            v = os.path.join(d, "v.mp4"); subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=640x360:r=24:d=6", "-c:v", "libx264", "-pix_fmt", "yuv420p", v], check=True)
+            r = reproductor.Reproductor(silencioso=True); r.resize(400, 260); r.show(); r.cargar(v); esperar(5, lambda: r.imagen is not None and r.dur)
+            self.assertIsNotNone(r.imagen); self.assertEqual((r.imagen.width(), r.imagen.height()), (640, 360)); self.assertAlmostEqual(r.dur, 6.0, delta=0.2)          # primer fotograma en pausa y duración
+            r.ir_a(4.0); esperar(1); self.assertAlmostEqual(r.segundos(), 4.0, delta=0.1)
+            r.ver_tramo(1.0, 2.0); esperar(5, lambda: not r.reproduciendo); self.assertFalse(r.reproduciendo); self.assertAlmostEqual(r.segundos(), 2.0, delta=0.25)          # se para al final del tramo
+            r.poner_guia(0.5); esperar(0.3); self.assertEqual(r.guia, 0.5); r.poner_guia(None); self.assertIsNone(r.guia)
+            r.cargar(""); self.assertIsNone(r.pipe); self.assertFalse(r.boton.isEnabled()); r.detener()
+
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_recorta_los_ultimos_segundos_con_su_audio(self):
