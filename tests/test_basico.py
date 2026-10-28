@@ -221,6 +221,14 @@ class ZonaMovible(unittest.TestCase):
         self.assertTrue(marco.asa(QRect(450, 4, 396, 700), 1366, 768).top() > 700)                                                                           # sin sitio arriba: abajo
         self.assertIsNone(marco.asa(QRect(0, 0, 400, 768), 1366, 768))                                                                                       # sin sitio en ninguno: sin asa
         self.assertEqual(marco.mover(z, QPoint(5000, -5000), 1366, 768), QRect(1366 - 396, 0, 396, 560)); self.assertEqual(marco.mover(z, QPoint(10, 20), 1366, 768), QRect(460, 110, 396, 560))
+    def test_la_mascara_es_solo_de_entrada_y_no_recorta_lo_pintado(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QRect
+        from PySide6.QtWidgets import QApplication
+        from screencapture import marco
+        QApplication.instance() or QApplication([]); m = marco.Marco(QRect(100, 90, 300, 560)); m.mostrar(); m.zona = QRect(700, 165, 300, 560); m.mascara()
+        self.assertTrue(m.mask().isEmpty())          # QWidget.setMask recortaría el pintado y dejaría una estela al arrastrar; la máscara de entrada va en la ventana de plataforma
+        m.close()
     def test_mover_zona_cambia_el_recorte_sin_cambiar_el_tamano_y_lo_anota(self):
         from screencapture import portal
         g = portal.Grabador(); g.corriendo = True; g.t0 = time.time(); g.flujo = (1366, 768); g.rect = (100, 60, 432, 646); g.recorte = g._recorte(); g.movs = [(0.0, 100, 60)]

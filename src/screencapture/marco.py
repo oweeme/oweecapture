@@ -32,7 +32,7 @@ class Marco(QWidget):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool); self.zona = QRect(zona); self.arrastre = None
         self.setAttribute(Qt.WA_TranslucentBackground); self.setAttribute(Qt.WA_ShowWithoutActivating); self.setWindowTitle(TITULO); self.setCursor(Qt.SizeAllCursor)
 
-    def mostrar(self): self.showFullScreen(); self.mascara()
+    def mostrar(self): self.showFullScreen(); self.windowHandle(); self.mascara()
 
     def zonas_activas(self):
         """Lo que se puede agarrar para mover el marco: la línea y el asa."""
@@ -42,10 +42,10 @@ class Marco(QWidget):
         """Solo la línea y el asa reciben el ratón; el resto de la pantalla queda libre (los clics pasan a las ventanas de debajo)."""
         r = QRegion()
         for z in self.zonas_activas(): r = r.united(QRegion(z))
-        self.setMask(r)
+        self.windowHandle().setMask(r)          # a nivel de la ventana de plataforma: en Wayland es solo la región de entrada. Con QWidget.setMask también se recortaría lo que se pinta y las líneas viejas no se borrarían (estela)
 
     def paintEvent(self, _e):
-        p = QPainter(self)
+        p = QPainter(self); p.setCompositionMode(QPainter.CompositionMode_Source); p.fillRect(self.rect(), Qt.transparent); p.setCompositionMode(QPainter.CompositionMode_SourceOver)          # borra lo dibujado antes: sin esto el marco deja una estela al moverse
         for r in segmentos(self.zona, self.width(), self.height()): p.fillRect(r, COLOR)
         a = asa(self.zona, self.width(), self.height())
         if a:
