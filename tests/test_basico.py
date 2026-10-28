@@ -118,18 +118,68 @@ class Directo(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_emite_a_un_receptor_rtmp_y_guarda_copia_local(self):
         import gi, time, threading; gi.require_version("Gst", "1.0")
-        from gi.repository import Gst
+        from gi.repository import GLib, Gst
         Gst.init(None)
-        if not all(Gst.ElementFactory.find(e) for e in ("x264enc", "rtmp2sink", "avenc_aac", "flvmux")): self.skipTest("faltan complementos de GStreamer")
+        if not all(Gst.ElementFactory.find(e) for e in ("x264enc", "rtmp2sink", "avenc_aac", "flvmux", "appsink", "appsrc")): self.skipTest("faltan complementos de GStreamer")
         with tempfile.TemporaryDirectory() as d:
             recibido = os.path.join(d, "recibido.flv"); local = os.path.join(d, "local.mkv")
             rx = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-listen", "1", "-f", "flv", "-i", "rtmp://127.0.0.1:19350/live/clave", "-c", "copy", recibido]); time.sleep(1)
-            desc = directo.descripcion("videotestsrc is-live=true pattern=ball", "", 30, 1500, (640, 360), [("audiotestsrc is-live=true wave=sine freq=440 volume=0.3", 1.0)], local, directo.destino("rtmp://127.0.0.1:19350/live", "clave"))
-            p = Gst.parse_launch(desc); p.set_state(Gst.State.PLAYING); time.sleep(4); p.send_event(Gst.Event.new_eos()); p.get_bus().timed_pop_filtered(8 * Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR); p.set_state(Gst.State.NULL)
+            desc = directo.descripcion("videotestsrc is-live=true pattern=ball", "", 30, 1500, (640, 360), [("audiotestsrc is-live=true wave=sine freq=440 volume=0.3", 1.0)], local)
+            p = Gst.parse_launch(desc); red = directo.Red(p, directo.destino("rtmp://127.0.0.1:19350/live", "clave")); eos = []
+            p.get_bus().add_signal_watch(); p.get_bus().connect("message", lambda b, m: eos.append(1) if m.type == Gst.MessageType.EOS else None)
+            p.set_state(Gst.State.PLAYING); red.conectar(); esperar(5); red.cerrar(); p.send_event(Gst.Event.new_eos()); esperar(8, lambda: eos); p.set_state(Gst.State.NULL)
             try: rx.wait(timeout=10)
             except subprocess.TimeoutExpired: rx.kill()
             def pistas(f): return subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", f], capture_output=True, text=True).stdout.split()
             self.assertEqual(sorted(pistas(recibido)), ["aac", "h264"]); self.assertEqual(sorted(pistas(local)), ["aac", "h264"]); self.assertGreater(core.duration(recibido), 2.5)
+
+def esperar(segundos, hasta=None):
+    """Espera `segundos` (o hasta que `hasta()` sea verdad) atendiendo los eventos de GLib desde este mismo hilo: no depende de un bucle en otro hilo, que no funciona si Qt (creado por otras pruebas) ya es dueño del contexto por defecto."""
+    from gi.repository import GLib
+    import time
+    fin = time.time() + segundos; ctx = GLib.MainContext.default()
+    while time.time() < fin and not (hasta and hasta()):
+        while ctx.iteration(False): pass
+        time.sleep(0.02)
+
+class Reconexion(unittest.TestCase):
+    """La rama de red se cae y se reconecta sin tocar la copia local (tubería real con fuentes de prueba y ffmpeg como receptor RTMP)."""
+    def _montar(self, puerto, local, **kw):
+        import gi, threading; gi.require_version("Gst", "1.0")
+        from gi.repository import GLib, Gst
+        Gst.init(None)
+        if not all(Gst.ElementFactory.find(e) for e in ("x264enc", "rtmp2sink", "avenc_aac", "flvmux", "appsink", "appsrc")): self.skipTest("faltan complementos de GStreamer")
+        url = directo.destino(f"rtmp://127.0.0.1:{puerto}/live", "k"); bucle = None
+        p = Gst.parse_launch(directo.descripcion("videotestsrc is-live=true pattern=ball", "", 30, 1500, (320, 180), [("audiotestsrc is-live=true wave=sine volume=0.3", 1.0)], local))
+        red = directo.Red(p, url, **kw); red.ESPERAS = [1, 1, 1, 1, 1, 1]; fatales = []; self.eos = threading.Event()
+        def msg(bus, m):
+            if m.type == Gst.MessageType.ERROR: fatales.append(m.parse_error()[0].message)          # la tubería principal no debe dar NINGÚN error por la red
+            elif m.type == Gst.MessageType.EOS: self.eos.set()
+        p.get_bus().add_signal_watch(); p.get_bus().connect("message", msg); return Gst, bucle, p, red, url, fatales
+    def _parar(self, Gst, p, bucle):
+        """EOS (el MKV queda cerrado) y parada; si la parada se atasca, la prueba falla en vez de colgarse."""
+        import threading
+        p.send_event(Gst.Event.new_eos()); esperar(8, self.eos.is_set); t = threading.Thread(target=p.set_state, args=(Gst.State.NULL,), daemon=True); t.start(); esperar(15, lambda: not t.is_alive())
+        self.assertFalse(t.is_alive(), "la tubería no se detuvo")
+    @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
+    def test_se_reconecta_cuando_vuelve_el_servidor_y_la_copia_local_no_se_corta(self):
+        import time
+        with tempfile.TemporaryDirectory() as d:
+            local = os.path.join(d, "local.mkv"); Gst, bucle, p, red, url, fatales = self._montar(19352, local)
+            def receptor(n): return subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-listen", "1", "-f", "flv", "-i", url, "-c", "copy", os.path.join(d, n)], stderr=subprocess.DEVNULL)
+            a = receptor("a.flv"); time.sleep(1); t0 = time.time(); p.set_state(Gst.State.PLAYING); red.conectar(); esperar(15, lambda: red.alguna_vez); self.assertTrue(red.alguna_vez); a.kill(); a.wait(); esperar(2); b = receptor("b.flv")          # primero hay que estar conectado de verdad
+            esperar(20, lambda: os.path.exists(os.path.join(d, "b.flv")) and os.path.getsize(os.path.join(d, "b.flv")) > 20000)          # hasta 20 s para que reconecte y llegue algo al segundo receptor
+            esperar(1); total = time.time() - t0; red.cerrar(); self._parar(Gst, p, bucle); esperar(1)
+            try: b.wait(timeout=8)
+            except subprocess.TimeoutExpired: b.kill()
+            self.assertEqual(fatales, []); self.assertGreaterEqual(red.caidas, 1); self.assertGreater(os.path.getsize(os.path.join(d, "b.flv")), 20000)
+            self.assertGreater(core.duration(local), total - 3, (core.duration(local), total))                          # el MKV local siguió escribiéndose todo el tiempo
+    def test_se_rinde_si_nunca_conecta(self):
+        import time
+        with tempfile.TemporaryDirectory() as d:
+            perdidos = []; Gst, bucle, p, red, url, fatales = self._montar(19353, os.path.join(d, "local.mkv"), al_perdido=perdidos.append, max_sin_conectar=2)
+            p.set_state(Gst.State.PLAYING); red.conectar(); esperar(20, lambda: perdidos)
+            self._parar(Gst, p, bucle); self.assertEqual(len(perdidos), 1); self.assertFalse(red.alguna_vez); self.assertEqual(fatales, [])
 
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")

@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -106,7 +106,7 @@ class Grabador:
         """`zona`: QRect en píxeles de la pantalla (o None para todo). El portal entrega la pantalla entera y la zona se recorta en la tubería.
         `efectos`: (zoom, halo) para aplicar al terminar (con zoom 1 y sin halo, ninguno); `mezcla`: (volumen del sistema, volumen del micrófono, nivel de reducción de ruido 0-2) que se aplica al guardar; `directo`: {"url", "clave", "alto", "kbps"} para transmitir por RTMP mientras se guarda una copia local (sin pausa ni efectos posteriores); `pantalla`: (x, y, ancho, alto) lógicos de la pantalla que se graba, para situar el cursor en el vídeo."""
         if self.corriendo or self.sesion: return
-        self.calidad = "youtube" if directo else calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla and not directo else None; self.directo = directo; self.nota = ""; self.pantalla = pantalla; self.mezcla = ([f for f, on in (('sistema', sistema), ('mic', mic)) if on],) + tuple(mezcla)
+        self.calidad = "youtube" if directo else calidad if calidad in core.QUALITY else "whatsapp"; self.fps = fps; self.sistema = sistema; self.mic = mic; self.zona = zona; self.max_mb = max_mb; self.efectos = efectos if efectos and (efectos[0] > 1 or efectos[1]) and pantalla and not directo else None; self.directo = directo; self.red = None; self.estado_red = ""; self.nota = ""; self.pantalla = pantalla; self.mezcla = ([f for f, on in (('sistema', sistema), ('mic', mic)) if on],) + tuple(mezcla)
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
@@ -155,12 +155,20 @@ class Grabador:
         ancho, alto = (self.rect[2], self.rect[3]) if self.rect else self.flujo
         self.mkv = os.path.join(self.tmp, "video.mkv")
         fuentes = ([('pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true', self.mezcla[1])] if self.sistema else []) + ([("pipewiresrc do-timestamp=true", self.mezcla[2])] if self.mic else [])
-        desc = dir_.descripcion(f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000", self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv, self.directo["url"])
+        desc = dir_.descripcion(f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000", self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv)
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False
         self.mezcla = (["sistema"], 1.0, 1.0, 0)
         bus = self.pipe.get_bus(); bus.add_signal_watch(); bus.connect("message", self._mensaje)
-        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); self.t_seg = time.time(); return True
+        self.segmentos.append(self.mkv); self.pipe.set_state(Gst.State.PLAYING); self.t_seg = time.time()
+        self.red = dir_.Red(self.pipe, self.directo["url"], self._estado_red, self._red_perdida); self.red.conectar(); return True
+
+    def _estado_red(self, texto): self.estado_red = texto
+
+    def _red_perdida(self, motivo):
+        """La rama de red se rindió (nunca conectó o agotó los reintentos): el directo termina, pero lo grabado en local se guarda."""
+        self.nota = (_("sin conexión con el servidor") if self.red and self.red.alguna_vez else _("no se pudo conectar con el servidor: revisa la dirección y la clave")); self._registrar(f"Red perdida: {motivo}")
+        if self.corriendo: self.corriendo = False; self._fin_eos() if any(os.path.exists(x) and os.path.getsize(x) > 1000 for x in self.segmentos) else (self.pipe.set_state(Gst.State.NULL), self._cerrar_sesion(), self.al_fallar(self.nota))
 
     def _lanzar(self):
         """Arranca la tubería de un trozo nuevo. El primero se llama video.mkv (nombre que reconoce core.recover_orphans); los siguientes, video-2.mkv…"""
@@ -198,6 +206,7 @@ class Grabador:
     def detener(self, al_terminar):
         if not self.corriendo: al_terminar(None, _("No hay una grabación en curso.")); return
         self.corriendo = False; self.al_terminar = al_terminar; self.final = True
+        if self.red: self.red.cerrar()
         if self.pipe is None: self._fin_eos()                                # en pausa y con el trozo ya cerrado
         else:
             if not self.pausada: self.pipe.send_event(Gst.Event.new_eos())  # EOS: el archivo queda cerrado y válido

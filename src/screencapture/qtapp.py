@@ -207,12 +207,18 @@ class Ventana(QWidget):
     def fin_grabacion(self):
         self.cerrar_marco(); self.reloj.stop(); self.cambiar_camara(False); self.directo_activo = None; self.b_directo.setText(_("Transmitir en directo")); self.b_directo.setEnabled(True); self.boton.setText(_("Grabar")); self.boton.setEnabled(True); self.pausa.setEnabled(False); self.pausa.setText(_("Pausar")); self.refrescar_bandeja()
 
+    def aviso_red(self):
+        """En directo, avisa (globo de la bandeja) cuando la conexión se cae y cuando vuelve."""
+        e = self.grab.estado_red if self.grab.directo else ""
+        if e != getattr(self, "_red_vista", "") and e.startswith(("Sin conexión", "Conectado (reconexiones")): self.avisar("Screencapture", _(e))
+        self._red_vista = e
+
     def cerrar_marco(self):
         m, self.marco = getattr(self, "marco", None), None
         if m: m.close()
 
     def tic(self):
-        s = self.grab.segundos(); t = f"{s // 60:02d}:{s % 60:02d}"; self.estado.setText((_("En pausa… {0}") if self.grab.pausada else _("EN DIRECTO… {0}") if self.grab.directo else _("Grabando… {0}")).replace("{0}", t)); self.refrescar_bandeja(t)
+        s = self.grab.segundos(); t = f"{s // 60:02d}:{s % 60:02d}"; self.estado.setText((_("En pausa… {0}") if self.grab.pausada else _("EN DIRECTO… {0}") + (" · " + _(self.grab.estado_red) if self.grab.estado_red else "") if self.grab.directo else _("Grabando… {0}")).replace("{0}", t)); self.aviso_red(); self.refrescar_bandeja(t)
 
     def pausar(self):
         """Pausa o reanuda; el archivo sigue siendo uno solo."""
