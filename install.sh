@@ -59,12 +59,14 @@ else
 fi
 
 # --- 2. entorno propio con PySide6 de PyPI (ve los paquetes del sistema: gi, dbus) ---
-command -v python3 >/dev/null || { echo "Falta python3." >&2; exit 1; }
-python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' || { echo "Hace falta Python 3.11 o posterior (tienes $(python3 -V))." >&2; exit 1; }
+PY=/usr/bin/python3; [ -x "$PY" ] || PY=python3          # el Python del sistema: es el que ven los paquetes de la distribucion (gi, dbus)
+command -v "$PY" >/dev/null || { echo "Falta python3." >&2; exit 1; }
+"$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' || { echo "Hace falta Python 3.11 o posterior (tienes $($PY -V))." >&2; exit 1; }
 rm -rf "$APP/venv"; mkdir -p "$APP"
-python3 -m venv --system-site-packages "$APP/venv" || { echo "No se pudo crear el entorno de Python (en Debian/Ubuntu falta python3-venv)." >&2; exit 1; }
+"$PY" -m venv --system-site-packages "$APP/venv" || { echo "No se pudo crear el entorno de Python (en Debian/Ubuntu falta python3-venv)." >&2; exit 1; }
 echo "Instalando PySide6 desde PyPI (unos 100 MB)..."
 "$APP/venv/bin/pip" install --quiet --disable-pip-version-check PySide6-Essentials
+[ -d /usr/lib/python3/dist-packages ] && { SP=$("$APP/venv/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"); echo /usr/lib/python3/dist-packages > "$SP/oweecapture-sistema.pth"; }          # Debian/Ubuntu/Deepin: que el entorno vea gi y dbus aunque su Python no incluya dist-packages
 
 # --- 3. el programa, las traducciones, el comando, el lanzador y los iconos ---
 rm -rf "$APP/lib"; mkdir -p "$APP/lib" "$PREFIJO/bin" "$PREFIJO/share/applications"

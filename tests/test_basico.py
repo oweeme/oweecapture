@@ -368,6 +368,9 @@ class PaqueteDeb(unittest.TestCase):
             lista = subprocess.run(["dpkg-deb", "-c", deb], capture_output=True, text=True).stdout; self.assertRegex(lista, r"-rwxr-xr-x root/root .* \./usr/bin/oweecapture"); self.assertIn("./usr/share/applications/oweecapture.desktop", lista)
             self.assertIn("./usr/share/oweecapture/locales/es.json" if os.path.exists(os.path.join(raiz, "locales", "es.json")) else "./usr/share/oweecapture/locales/en.json", lista); self.assertIn("./usr/lib/python3/dist-packages/oweecapture/qtapp.py", lista)
             self.assertNotIn("__pycache__", lista); self.assertNotIn("tests/", lista)
+            lanzador = subprocess.run(f"dpkg-deb --fsys-tarfile {deb} | tar -xO ./usr/bin/oweecapture", shell=True, capture_output=True, text=True).stdout; postinst = subprocess.run(["dpkg-deb", "-I", deb, "postinst"], capture_output=True, text=True).stdout
+            self.assertIn('import oweecapture, PySide6.QtWidgets', lanzador); self.assertIn("exec /usr/bin/python3", lanzador)          # un entorno roto no impide arrancar
+            self.assertIn("PY=/usr/bin/python3", postinst); self.assertIn("oweecapture-sistema.pth", postinst); self.assertNotIn("python3 -m venv", postinst.replace("$PY -m venv", "").replace("/usr/bin/python3 -m venv", ""))          # siempre el Python del sistema, nunca el primero del PATH
         finally:
             if os.path.exists(deb): os.remove(deb)
         self.assertNotEqual(subprocess.run([os.path.join(raiz, "packaging", "crear_deb.sh"), "no valida!"], capture_output=True, cwd=raiz).returncode, 0)          # una versión inválida se rechaza

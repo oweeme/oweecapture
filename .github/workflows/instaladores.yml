@@ -50,6 +50,16 @@ jobs:
           if [ -x /opt/oweecapture/venv/bin/python ]; then echo ">> PySide6 de PyPI (entorno propio)"; else echo ">> PySide6 de la distribución"; fi
           oweecapture --version
           oweecapture --comprobar
+      - name: El entorno propio ve los paquetes del sistema (gi, dbus, oweecapture) aunque su Python no los incluya
+        run: |
+          if [ -x /opt/oweecapture/venv/bin/python ]; then
+            /usr/bin/python3 -m venv --without-system-site-packages /tmp/entorno-aislado     # un Python que NO ve /usr/lib/python3/dist-packages, como el de algunos Deepin
+            SP=$(/tmp/entorno-aislado/bin/python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
+            ! /tmp/entorno-aislado/bin/python -c "import oweecapture" 2>/dev/null           # sin el .pth no lo ve (reproduce el fallo)
+            echo /usr/lib/python3/dist-packages > "$SP/oweecapture-sistema.pth"            # el mismo mecanismo que escribe la instalación
+            /tmp/entorno-aislado/bin/python -c "import oweecapture, gi, dbus; print('con el .pth ve oweecapture, gi y dbus')"
+            echo "contenido del .pth que escribió la instalación:"; cat /opt/oweecapture/venv/lib/python3*/site-packages/oweecapture-sistema.pth
+          else echo "esta distribución usa el PySide6 del sistema: no hay entorno propio que comprobar"; fi
       - name: Comprobar que Qt abre una ventana en una sesión X11 (pantalla virtual)
         run: |
           apt-get install -y -qq --no-install-recommends xvfb xauth

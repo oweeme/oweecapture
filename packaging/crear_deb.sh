@@ -16,7 +16,8 @@ cat > "$B/usr/bin/oweecapture" <<'EOF'
 # Si el instalador tuvo que crear un entorno propio con PySide6 (la distribucion no lo empaqueta), se usa ese; si no, el Python del sistema.
 # Desde el menu no hay terminal: los errores de arranque (p. ej. a Qt le falta una biblioteca) se guardan en ~/.cache/oweecapture/arranque.log
 if [ ! -t 2 ]; then d="${XDG_CACHE_HOME:-$HOME/.cache}/oweecapture"; mkdir -p "$d" 2>/dev/null && exec 2>>"$d/arranque.log"; fi
-if [ -x /opt/oweecapture/venv/bin/python ]; then exec /opt/oweecapture/venv/bin/python -m oweecapture.qtapp "$@"; fi
+V=/opt/oweecapture/venv/bin/python
+if [ -x "$V" ] && "$V" -c "import oweecapture, PySide6.QtWidgets" >/dev/null 2>&1; then exec "$V" -m oweecapture.qtapp "$@"; fi          # un entorno roto no impide arrancar: se cae al Python del sistema
 exec /usr/bin/python3 -m oweecapture.qtapp "$@"
 EOF
 chmod 755 "$B/usr/bin/oweecapture"
@@ -47,15 +48,18 @@ cat > "$B/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "configure" ]; then
-    python3 -m compileall -q /usr/lib/python3/dist-packages/oweecapture >/dev/null 2>&1 || true
+    PY=/usr/bin/python3; [ -x "$PY" ] || PY=python3          # SIEMPRE el Python del sistema: un python3 de /usr/local o de pyenv/conda no ve los paquetes de la distribucion (gi, dbus, oweecapture)
+    $PY -m compileall -q /usr/lib/python3/dist-packages/oweecapture >/dev/null 2>&1 || true
     # PySide6: si la distribucion no lo empaqueta (Ubuntu 24.04, algunas Deepin...), se instala de PyPI en un entorno propio (unos 100 MB); el comando lo usa solo
-    if ! python3 -c "import PySide6.QtWidgets" >/dev/null 2>&1; then
+    if ! $PY -c "import PySide6.QtWidgets" >/dev/null 2>&1; then
         echo "oweecapture: esta distribucion no trae PySide6; se instala desde PyPI (unos 100 MB) en /opt/oweecapture/venv" >&2
-        if python3 -m venv --system-site-packages /opt/oweecapture/venv >/dev/null 2>&1 && /opt/oweecapture/venv/bin/pip install --quiet --disable-pip-version-check PySide6-Essentials; then
+        if $PY -m venv --system-site-packages /opt/oweecapture/venv >/dev/null 2>&1 && /opt/oweecapture/venv/bin/pip install --quiet --disable-pip-version-check PySide6-Essentials; then
+            # el entorno debe ver los paquetes de la distribucion (oweecapture, gi, dbus) aunque su Python no incluya dist-packages por defecto; al final del sys.path, para que PySide6 de PyPI mande
+            SP=$(/opt/oweecapture/venv/bin/python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])") && echo /usr/lib/python3/dist-packages > "$SP/oweecapture-sistema.pth"
             echo "oweecapture: PySide6 instalado" >&2
         else
             rm -rf /opt/oweecapture
-            echo "oweecapture: NO se pudo instalar PySide6 (falta red?). Instalalo a mano: python3 -m venv --system-site-packages /opt/oweecapture/venv && /opt/oweecapture/venv/bin/pip install PySide6-Essentials" >&2
+            echo "oweecapture: NO se pudo instalar PySide6 (falta red?). Instalalo a mano: /usr/bin/python3 -m venv --system-site-packages /opt/oweecapture/venv && /opt/oweecapture/venv/bin/pip install PySide6-Essentials" >&2
         fi
     fi
     command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
