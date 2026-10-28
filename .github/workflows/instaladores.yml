@@ -70,6 +70,36 @@ jobs:
           test ! -e /opt/oweecapture
           ! command -v oweecapture
 
+  actualizar-deb:
+    name: Actualizar encima de un entorno propio roto (${{ matrix.imagen }})
+    needs: construir-deb
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.imagen }}
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: ["debian:13", "ubuntu:25.10"]          # las que traen PySide6 en apt
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-instalador
+          path: deb
+      - name: Sistema con PySide6 propio y un entorno viejo roto de una instalación anterior
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates python3-pyside6.qtcore python3-pyside6.qtgui python3-pyside6.qtwidgets
+          mkdir -p /opt/oweecapture/venv/bin
+          printf '#!/bin/sh\nexit 1\n' > /opt/oweecapture/venv/bin/python; chmod +x /opt/oweecapture/venv/bin/python
+      - name: Instalar el .deb encima
+        run: apt-get install -y --no-install-recommends ./deb/*.deb
+      - name: Debe usar el PySide6 del sistema y haber retirado el entorno viejo
+        run: |
+          test ! -e /opt/oweecapture
+          oweecapture --version
+          oweecapture --comprobar
+
   probar-script:
     name: install.sh en ${{ matrix.imagen }}
     runs-on: ubuntu-24.04

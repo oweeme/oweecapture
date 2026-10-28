@@ -61,6 +61,8 @@ if [ "$1" = "configure" ]; then
             rm -rf /opt/oweecapture
             echo "oweecapture: NO se pudo instalar PySide6 (falta red?). Instalalo a mano: /usr/bin/python3 -m venv --system-site-packages /opt/oweecapture/venv && /opt/oweecapture/venv/bin/pip install PySide6-Essentials" >&2
         fi
+    else
+        rm -rf /opt/oweecapture          # el sistema ya trae PySide6: un entorno propio de una instalacion anterior sobra (y podria estar roto)
     fi
     command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
     command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || true
