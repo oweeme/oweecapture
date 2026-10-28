@@ -60,7 +60,7 @@ class Ventana(QWidget):
         self.reloj = QTimer(self); self.reloj.timeout.connect(self.tic)
         kwin.mantener_encima([burbuja_titulo(), marco.TITULO, efectos_pantalla.TITULO, presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
         self.tray = bandeja(self)
-        self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Atajos no disponibles: ") + m))
+        self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Tu escritorio no ofrece atajos globales a las aplicaciones. Crea los tuyos en los ajustes de teclado, con estas órdenes: oweecapture --record · oweecapture --shot · oweecapture --present · oweecapture --quit. (Detalle: ") + m + ")"))
         if not os.environ.get("OWEECAPTURE_SIN_ATAJOS"): self.atajos.iniciar()          # las pruebas lo desactivan: registrar atajos desde un proceso de prueba los deja en el grupo equivocado de KDE
 
     def atajo(self, que):
@@ -340,9 +340,9 @@ def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Pres
 
 def comprobar():
     """Autoprueba para instaladores y la integración continua: arranca Qt sin pantalla, crea la ventana principal y comprueba lo imprescindible (ffmpeg y los complementos de GStreamer). Imprime una línea por cosa; devuelve 0 si todo lo imprescindible está, 1 si no."""
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"; os.environ["OWEECAPTURE_SIN_ATAJOS"] = "1"          # sin pantalla y sin registrar atajos en el escritorio de quien lo ejecute
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen"); os.environ["OWEECAPTURE_SIN_ATAJOS"] = "1"          # sin pantalla y sin registrar atajos en el escritorio de quien lo ejecute
     import PySide6; falta = []; print(f"OweeCapture {autor.VERSION} · Python {sys.version.split()[0]} · PySide6 {PySide6.__version__}")
-    app = QApplication(sys.argv[:1]); v = Ventana(); app.processEvents(); print(f"  ventana principal: ok ({v.pestanas.count()} pestañas)")
+    app = QApplication(sys.argv[:1]); v = Ventana(); app.processEvents(); print(f"  ventana principal: ok ({v.pestanas.count()} pestañas) · plataforma gráfica de Qt: {app.platformName()}")
     import gi; gi.require_version("Gst", "1.0")
     from gi.repository import Gst
     Gst.init(None)

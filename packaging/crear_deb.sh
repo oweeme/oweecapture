@@ -14,6 +14,8 @@ cp -r src/oweecapture "$B/usr/lib/python3/dist-packages/oweecapture"; find "$B" 
 cat > "$B/usr/bin/oweecapture" <<'EOF'
 #!/bin/sh
 # Si el instalador tuvo que crear un entorno propio con PySide6 (la distribucion no lo empaqueta), se usa ese; si no, el Python del sistema.
+# Desde el menu no hay terminal: los errores de arranque (p. ej. a Qt le falta una biblioteca) se guardan en ~/.cache/oweecapture/arranque.log
+if [ ! -t 2 ]; then d="${XDG_CACHE_HOME:-$HOME/.cache}/oweecapture"; mkdir -p "$d" 2>/dev/null && exec 2>>"$d/arranque.log"; fi
 if [ -x /opt/oweecapture/venv/bin/python ]; then exec /opt/oweecapture/venv/bin/python -m oweecapture.qtapp "$@"; fi
 exec /usr/bin/python3 -m oweecapture.qtapp "$@"
 EOF
@@ -36,8 +38,8 @@ Architecture: all
 Maintainer: Hector Martinez <hector@oweeme.com>
 Homepage: https://oweeme.com
 Installed-Size: $TAM
-Depends: python3 (>= 3.11), python3-venv, python3-gi, python3-dbus, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, ffmpeg, pipewire, xdg-desktop-portal, libgl1, libegl1, libxkbcommon0, libfontconfig1, libdbus-1-3
-Recommends: python3-pyside6.qtcore, python3-pyside6.qtgui, python3-pyside6.qtwidgets, xdg-desktop-portal-kde | xdg-desktop-portal-gnome | xdg-desktop-portal-wlr, libnotify-bin, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
+Depends: python3 (>= 3.11), python3-venv, python3-gi, python3-dbus, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, ffmpeg, pipewire, xdg-desktop-portal, libgl1, libegl1, libxkbcommon0, libfontconfig1, libdbus-1-3, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
+Recommends: python3-pyside6.qtcore, python3-pyside6.qtgui, python3-pyside6.qtwidgets, xdg-desktop-portal-kde | xdg-desktop-portal-gnome | xdg-desktop-portal-wlr, libnotify-bin
 Description: screenshots, screen recording, live streaming and video tools
  OweeCapture takes screenshots and records the screen (with system audio, microphone and webcam) on Wayland through the desktop portal. It streams live over RTMP (YouTube, TikTok, Twitch) with a local copy and automatic reconnection, and includes tools to publish videos: vertical 9:16, trimming, silence cutting and local automatic subtitles.
 EOF

@@ -31,17 +31,17 @@ fi
 FAM="${ID:-}${ID_LIKE:+ $ID_LIKE}"; NOTA=""
 case " $FAM " in
     *" debian "*|*" ubuntu "*|*" deepin "*|*" linuxmint "*) GESTOR=apt
-        PAQ="python3 python3-venv python3-gi python3-dbus gir1.2-gstreamer-1.0 gstreamer1.0-pipewire gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav ffmpeg pipewire xdg-desktop-portal libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3"
+        PAQ="python3 python3-venv python3-gi python3-dbus gir1.2-gstreamer-1.0 gstreamer1.0-pipewire gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav ffmpeg pipewire xdg-desktop-portal libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libwayland-client0 libwayland-cursor0 libwayland-egl1"
         INSTALAR="apt-get install -y --no-install-recommends" ;;
     *" fedora "*|*" rhel "*|*" centos "*) GESTOR=dnf
-        PAQ="python3 python3-gobject python3-dbus gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free pipewire-gstreamer pipewire xdg-desktop-portal mesa-libGL mesa-libEGL libxkbcommon fontconfig dbus-libs ffmpeg-free"
+        PAQ="python3 python3-gobject python3-dbus gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free pipewire-gstreamer pipewire xdg-desktop-portal mesa-libGL mesa-libEGL libxkbcommon fontconfig dbus-libs ffmpeg-free xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 libwayland-client libwayland-cursor libwayland-egl"
         INSTALAR="dnf install -y"
         NOTA="Fedora no incluye los codificadores H.264 y AAC (licencias). Para grabar y transmitir activa RPM Fusion (https://rpmfusion.org/Configuration) e instala:  sudo dnf install gstreamer1-plugins-ugly gstreamer1-libav ffmpeg --allowerasing" ;;
     *" arch "*|*" manjaro "*|*" endeavouros "*) GESTOR=pacman
-        PAQ="python python-gobject python-dbus gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire ffmpeg pipewire xdg-desktop-portal mesa libxkbcommon fontconfig dbus"
+        PAQ="python python-gobject python-dbus gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire ffmpeg pipewire xdg-desktop-portal mesa libxkbcommon fontconfig dbus xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 wayland"
         INSTALAR="pacman -S --noconfirm --needed" ;;
     *" suse "*|*" opensuse "*|*" sles "*) GESTOR=zypper
-        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3 libglib-2_0-0 libgobject-2_0-0 libgthread-2_0-0 libgio-2_0-0 typelib-1_0-Gst-1_0"
+        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3 libglib-2_0-0 libgobject-2_0-0 libgthread-2_0-0 libgio-2_0-0 typelib-1_0-Gst-1_0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xkb1 libxkbcommon-x11-0 libwayland-client0 libwayland-cursor0 libwayland-egl1"
         INSTALAR="zypper --non-interactive install" ;;
     *) GESTOR=""; PAQ=""; INSTALAR="" ;;
 esac
@@ -72,6 +72,8 @@ cp -r "$RAIZ/src/oweecapture" "$APP/lib/oweecapture"; find "$APP/lib" -name __py
 rm -rf "$APP/locales"; cp -r "$RAIZ/locales" "$APP/locales"          # i18n.py las busca en ../../locales desde el paquete
 cat > "$BIN" <<EOF
 #!/bin/sh
+# Desde el menu no hay terminal: los errores de arranque se guardan en ~/.cache/oweecapture/arranque.log
+if [ ! -t 2 ]; then d="\${XDG_CACHE_HOME:-\$HOME/.cache}/oweecapture"; mkdir -p "\$d" 2>/dev/null && exec 2>>"\$d/arranque.log"; fi
 export PYTHONPATH="$APP/lib\${PYTHONPATH:+:\$PYTHONPATH}"
 exec "$APP/venv/bin/python" -m oweecapture.qtapp "\$@"
 EOF

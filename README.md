@@ -17,6 +17,10 @@ Las dos vías se **prueban en cada subida** en contenedores limpios de GitHub Ac
 
 **Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp`.
 
+**Si no abre nada:** lánzalo desde una terminal (`oweecapture`) para ver el error, o mira el registro `~/.cache/oweecapture/arranque.log` (desde el menú no hay terminal y ahí se guardan los errores de arranque). `oweecapture --comprobar` dice qué falta. Si Qt se queja de «xcb» o de «platform plugin», faltan bibliotecas gráficas: `sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1` (el `.deb` desde la 0.1.2 ya las exige).
+
+**Atajos en escritorios sin atajos globales para aplicaciones (Deepin, GNOME antes de la 48…):** crea los tuyos en los ajustes de teclado, con estas órdenes: `oweecapture --record` (grabar/detener), `--shot` (captura), `--present` (modo presentación), `--quit`. Si la tecla que quieres ya la usa el sistema (en Deepin `Ctrl+Alt+R` es su grabador), elige otra, p. ej. `Ctrl+Alt+Shift+R`. Para que arranque sola y atienda esas órdenes al iniciar sesión, activa «Iniciar OweeCapture al abrir la sesión» en la pestaña *Grabar*.
+
 **Escritorios:** la captura usa el portal de pantalla y PipeWire, así que sirve donde haya un portal con *ScreenCast* (KDE Plasma, GNOME en Wayland…). Probado de verdad en KDE Plasma 6; en **GNOME** y **Deepin** falta probarlo en un escritorio real: sin bandeja visible ni atajos globales (GNOME antes de la 48 no los ofrece) conviene crear los atajos a mano con `oweecapture --record` y `--shot`, y la burbuja de cámara y el marco no se pueden mantener siempre encima como en KDE.
 
 **Windows: todavía no hay instalador, y no se puede fingir uno.** OweeCapture depende del portal de pantalla de Linux (xdg-desktop-portal + PipeWire), de GStreamer y de D-Bus. Portarlo a Windows exige escribir otra captura (ffmpeg `ddagrab`/`gdigrab`), el audio del sistema (WASAPI), los atajos globales (`RegisterHotKey`) y probarlo en un Windows real: es el hito M5b del [plan](PLAN.md). Un instalador sin eso se abriría y no grabaría nada.
