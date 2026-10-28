@@ -36,9 +36,22 @@ jobs:
           git archive --format=tar.gz --prefix="oweecapture-$VERSION/" -o "dist/oweecapture-$VERSION-fuente.tar.gz" HEAD          # incluye install.sh, el instalador universal
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
 
+      - name: Notas de la release
+        run: |
+          cat > notas.md <<EOF
+          ## Instalar en cualquier distribución de Linux
+
+          **Debian, Ubuntu, Deepin, Mint y derivadas:** \`sudo apt install ./oweecapture_${VERSION}_all.deb\`. Si tu distribución no trae PySide6 (Debian 12, Ubuntu 24.04, Deepin 23), la instalación lo descarga de PyPI (unos 100 MB) a \`/opt/oweecapture/venv\`; hace falta red.
+
+          **Fedora, Arch, openSUSE y cualquier otra:** descomprime \`oweecapture-${VERSION}-fuente.tar.gz\` y ejecuta \`./install.sh --dependencias\` (instala en \`~/.local\`; pide confirmación antes de usar \`sudo\`). Fedora necesita RPM Fusion para los codificadores H.264 y AAC.
+
+          Comprueba la instalación con \`oweecapture --comprobar\`. Los instaladores se prueban en cada versión en Debian 12 y 13, Ubuntu 24.04 y 25.10, Fedora, Arch y openSUSE Tumbleweed.
+
+          **Límites:** solo Linux con Wayland y portal de pantalla; probado de verdad en KDE Plasma. GNOME y Deepin están sin probar en un escritorio real. Windows todavía no está soportado.
+          EOF
       - name: Crear la release
         run: |
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "OweeCapture $VERSION" \
             --generate-notes \
-            --notes "Instalación: \`sudo apt install ./oweecapture_${VERSION}_all.deb\` en KDE neon, Debian 13 o posterior, Ubuntu 25.04 o posterior y derivadas (necesitan los paquetes \`python3-pyside6.*\` de la distribución). Ubuntu 24.04 y anteriores no los traen: instala desde el código con PySide6 de PyPI (ver el README). Solo Linux con Wayland; Windows todavía no está soportado."
+            --notes-file notas.md
