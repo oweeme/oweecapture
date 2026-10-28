@@ -35,7 +35,7 @@ jobs:
       - name: Pruebas (sesión de bus limpia, sin pantalla)
         run: |
           dbus-run-session -- env QT_QPA_PLATFORM=offscreen OWEECAPTURE_SIN_ATAJOS=1 PYTHONPATH=src \
-            .venv/bin/python -W ignore -m unittest discover -s tests -v
+            .venv/bin/python -W ignore tests/ejecutar.py
 
       - name: Construir el paquete .deb
         run: ./packaging/crear_deb.sh 0.0.0-ci
