@@ -7,9 +7,17 @@ Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio d
 **Estado:** versión 0.1, extraída de la «Capturadora» de OweeLinux. Hoy funciona en compositores basados en wlroots (labwc, sway, Hyprland, River…). El plan para llegar a GNOME y KDE está en [PLAN.md](PLAN.md).
 
 ## Instalar
-**KDE neon, Debian 13 o posterior, Ubuntu 25.04 o posterior y derivadas (Wayland):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb` (apt instala también las dependencias). Hacen falta los paquetes `python3-pyside6.*` de la distribución. **Ubuntu 24.04 y anteriores no los traen**, así que el `.deb` no se puede instalar ahí tal cual: usa «Desde el código» con PySide6 de PyPI (`python3 -m venv --system-site-packages .venv && .venv/bin/pip install PySide6-Essentials`). Se construye con `packaging/crear_deb.sh` y GitHub Actions lo publica al crear una etiqueta `vX.Y.Z` (`.github/workflows/`: las pruebas corren en cada subida).
+Las dos vías se **prueban en cada subida** en contenedores limpios de GitHub Actions (`.github/workflows/instaladores.yml`): se instala de verdad y se ejecuta `oweecapture --comprobar`. Solo Linux con Wayland y el portal de pantalla (hoy lo más probado es KDE; mira *Escritorios* abajo).
 
-**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp` (dependencias abajo). Sirve en cualquier distribución con Wayland, portal de pantalla y PipeWire.
+**Debian, Ubuntu, Deepin, Mint y derivadas (apt):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb`. Probado en Debian 12 y 13 y en Ubuntu 24.04 y 25.10. Si tu distribución trae los paquetes `python3-pyside6.*` (Debian 13, Ubuntu 25.04+, KDE neon) usa esos; si no (Debian 12, Ubuntu 24.04, Deepin 23), **la instalación descarga PySide6 de PyPI (~100 MB) a `/opt/oweecapture/venv`** y el comando lo usa solo; se quita con el paquete. Hace falta red durante la instalación en ese caso.
+
+**Cualquier otra distribución (Fedora, Arch/Manjaro, openSUSE…) o sin apt:** descarga el código fuente de la release (`oweecapture-<versión>-fuente.tar.gz`) o clona el repositorio y ejecuta `./install.sh --dependencias` (instala en `~/.local`, un entorno de Python propio con PySide6 de PyPI, el comando, el lanzador y los iconos; **pide confirmación antes de usar `sudo`** y muestra la orden exacta de tu gestor de paquetes). `./install.sh --desinstalar` quita solo lo suyo. Probado en Ubuntu, Fedora, Arch y openSUSE Tumbleweed. **Fedora** no incluye los codificadores H.264 y AAC: activa [RPM Fusion](https://rpmfusion.org/Configuration) e instala `gstreamer1-plugins-ugly gstreamer1-libav ffmpeg` (el script te lo recuerda).
+
+**Comprobar una instalación:** `oweecapture --version` y `oweecapture --comprobar` (arranca Qt sin pantalla y dice qué falta: ffmpeg, complementos de GStreamer…).
+
+**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp`.
+
+**Escritorios:** la captura usa el portal de pantalla y PipeWire, así que sirve donde haya un portal con *ScreenCast* (KDE Plasma, GNOME en Wayland…). Probado de verdad en KDE Plasma 6; en **GNOME** y **Deepin** falta probarlo en un escritorio real: sin bandeja visible ni atajos globales (GNOME antes de la 48 no los ofrece) conviene crear los atajos a mano con `oweecapture --record` y `--shot`, y la burbuja de cámara y el marco no se pueden mantener siempre encima como en KDE.
 
 **Windows: todavía no hay instalador, y no se puede fingir uno.** OweeCapture depende del portal de pantalla de Linux (xdg-desktop-portal + PipeWire), de GStreamer y de D-Bus. Portarlo a Windows exige escribir otra captura (ffmpeg `ddagrab`/`gdigrab`), el audio del sistema (WASAPI), los atajos globales (`RegisterHotKey`) y probarlo en un Windows real: es el hito M5b del [plan](PLAN.md). Un instalador sin eso se abriría y no grabaría nada.
 

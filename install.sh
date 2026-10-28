@@ -28,19 +28,20 @@ fi
 
 # --- 1. distribucion y paquetes del sistema ---
 . /etc/os-release 2>/dev/null || true
-FAM="${ID:-}${ID_LIKE:+ $ID_LIKE}"
+FAM="${ID:-}${ID_LIKE:+ $ID_LIKE}"; NOTA=""
 case " $FAM " in
     *" debian "*|*" ubuntu "*|*" deepin "*|*" linuxmint "*) GESTOR=apt
         PAQ="python3 python3-venv python3-gi python3-dbus gir1.2-gstreamer-1.0 gstreamer1.0-pipewire gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav ffmpeg pipewire xdg-desktop-portal libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3"
         INSTALAR="apt-get install -y --no-install-recommends" ;;
     *" fedora "*|*" rhel "*|*" centos "*) GESTOR=dnf
         PAQ="python3 python3-gobject python3-dbus gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free pipewire-gstreamer pipewire xdg-desktop-portal mesa-libGL mesa-libEGL libxkbcommon fontconfig dbus-libs ffmpeg-free"
-        INSTALAR="dnf install -y" ;;
+        INSTALAR="dnf install -y"
+        NOTA="Fedora no incluye los codificadores H.264 y AAC (licencias). Para grabar y transmitir activa RPM Fusion (https://rpmfusion.org/Configuration) e instala:  sudo dnf install gstreamer1-plugins-ugly gstreamer1-libav ffmpeg --allowerasing" ;;
     *" arch "*|*" manjaro "*|*" endeavouros "*) GESTOR=pacman
         PAQ="python python-gobject python-dbus gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire ffmpeg pipewire xdg-desktop-portal mesa libxkbcommon fontconfig dbus"
         INSTALAR="pacman -S --noconfirm --needed" ;;
     *" suse "*|*" opensuse "*|*" sles "*) GESTOR=zypper
-        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3"
+        PAQ="python3 python3-pip python3-gobject python3-dbus-python gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-plugin-pipewire ffmpeg pipewire xdg-desktop-portal Mesa-libGL1 Mesa-libEGL1 libxkbcommon0 fontconfig libdbus-1-3 libglib-2_0-0 libgobject-2_0-0 libgthread-2_0-0 libgio-2_0-0"
         INSTALAR="zypper --non-interactive install" ;;
     *) GESTOR=""; PAQ=""; INSTALAR="" ;;
 esac
@@ -84,6 +85,7 @@ command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t 
 # --- 4. autocomprobacion ---
 echo; echo "Comprobando la instalacion..."
 if "$BIN" --comprobar; then
+    [ -n "$NOTA" ] && { echo; echo "AVISO: $NOTA"; }
     echo; echo "Listo. Ejecuta: $BIN"; case ":$PATH:" in *":$PREFIJO/bin:"*) ;; *) echo "(anade $PREFIJO/bin a tu PATH para usar solo 'oweecapture')" ;; esac
 else
     echo; echo "La instalacion termino, pero faltan dependencias del sistema (ver arriba). Instalalas y ejecuta:  $BIN --comprobar" >&2; exit 1
