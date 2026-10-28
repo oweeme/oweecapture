@@ -1,0 +1,81 @@
+name: Instaladores en cada distribución
+
+# Instala OweeCapture de verdad, en contenedores limpios de cada distribución, y comprueba que arranca (`oweecapture --comprobar`).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:          # lo reutiliza lanzamiento.yml: no se publica una versión cuyo instalador no funcione
+
+permissions:
+  contents: read
+
+jobs:
+  construir-deb:
+    name: Construir el .deb
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./packaging/crear_deb.sh 0.0.0-ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-instalador
+          path: dist/*.deb
+          if-no-files-found: error
+
+  probar-deb:
+    name: .deb en ${{ matrix.imagen }}
+    needs: construir-deb
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.imagen }}
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: ["debian:12", "debian:13", "ubuntu:24.04", "ubuntu:25.10"]
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-instalador
+          path: deb
+      - name: Instalar el .deb (apt resuelve las dependencias)
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates
+          apt-get install -y ./deb/*.deb
+      - name: Comprobar que arranca
+        run: |
+          if [ -x /opt/oweecapture/venv/bin/python ]; then echo ">> PySide6 de PyPI (entorno propio)"; else echo ">> PySide6 de la distribución"; fi
+          oweecapture --version
+          oweecapture --comprobar
+      - name: Desinstalar y comprobar que no queda nada
+        run: |
+          apt-get remove -y oweecapture
+          test ! -e /opt/oweecapture
+          ! command -v oweecapture
+
+  probar-script:
+    name: install.sh en ${{ matrix.imagen }}
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.imagen }}
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: ["ubuntu:24.04", "fedora:latest", "archlinux:latest", "opensuse/tumbleweed:latest"]
+    steps:
+      - name: Herramientas básicas para descargar el código
+        run: |
+          if command -v apt-get >/dev/null; then apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tar gzip git ca-certificates
+          elif command -v dnf >/dev/null; then dnf install -y tar gzip git ca-certificates
+          elif command -v pacman >/dev/null; then pacman -Syu --noconfirm tar gzip git ca-certificates
+          elif command -v zypper >/dev/null; then zypper --non-interactive install tar gzip git ca-certificates; fi
+      - uses: actions/checkout@v4
+      - name: Instalar con install.sh (dependencias del sistema incluidas)
+        run: ./install.sh --dependencias --si
+      - name: Desinstalar y comprobar que no queda nada
+        run: |
+          ./install.sh --desinstalar
+          test ! -e "$HOME/.local/bin/oweecapture"
+          test ! -e "$HOME/.local/share/oweecapture"

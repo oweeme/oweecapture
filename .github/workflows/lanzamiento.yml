@@ -13,9 +13,12 @@ jobs:
   pruebas:
     uses: ./.github/workflows/ci.yml
 
+  instaladores:
+    uses: ./.github/workflows/instaladores.yml
+
   publicar:
     name: Publicar la versión
-    needs: pruebas
+    needs: [pruebas, instaladores]
     runs-on: ubuntu-24.04
     permissions:
       contents: write          # crear la release y subir los archivos
@@ -30,7 +33,7 @@ jobs:
       - name: Construir el .deb y el código fuente
         run: |
           ./packaging/crear_deb.sh "$VERSION"
-          git archive --format=tar.gz --prefix="oweecapture-$VERSION/" -o "dist/oweecapture-$VERSION-fuente.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="oweecapture-$VERSION/" -o "dist/oweecapture-$VERSION-fuente.tar.gz" HEAD          # incluye install.sh, el instalador universal
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
 
       - name: Crear la release

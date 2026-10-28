@@ -338,7 +338,24 @@ def bandeja(v):
 
 def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
 
+def comprobar():
+    """Autoprueba para instaladores y la integración continua: arranca Qt sin pantalla, crea la ventana principal y comprueba lo imprescindible (ffmpeg y los complementos de GStreamer). Imprime una línea por cosa; devuelve 0 si todo lo imprescindible está, 1 si no."""
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"; os.environ["OWEECAPTURE_SIN_ATAJOS"] = "1"          # sin pantalla y sin registrar atajos en el escritorio de quien lo ejecute
+    import PySide6; falta = []; print(f"OweeCapture {autor.VERSION} · Python {sys.version.split()[0]} · PySide6 {PySide6.__version__}")
+    app = QApplication(sys.argv[:1]); v = Ventana(); app.processEvents(); print(f"  ventana principal: ok ({v.pestanas.count()} pestañas)")
+    import gi; gi.require_version("Gst", "1.0")
+    from gi.repository import Gst
+    Gst.init(None)
+    for nombre, esencial in (("appsink", True), ("videoconvert", True), ("x264enc", False), ("avenc_aac", False), ("rtmp2sink", False), ("flvmux", False), ("pipewiresrc", False)):
+        ok = Gst.ElementFactory.find(nombre) is not None; print(f"  GStreamer {nombre}: {'ok' if ok else 'FALTA' + (' (imprescindible)' if esencial else ' (necesario para grabar o transmitir)')}"); falta += [nombre] if esencial and not ok else []
+    ok = core.have("ffmpeg"); print(f"  ffmpeg: {'ok' if ok else 'FALTA (imprescindible)'}"); falta += [] if ok else ["ffmpeg"]
+    print("  entorno de escritorio:", os.environ.get("XDG_CURRENT_DESKTOP") or "(no hay sesión)", "| KWin:", "sí" if kwin.disponible() else "no")
+    print("RESULTADO:", "todo lo imprescindible está" if not falta else "faltan: " + ", ".join(falta)); return 1 if falta else 0
+
 def main():
+    if "--version" in sys.argv[1:]:
+        import PySide6; print(f"OweeCapture {autor.VERSION} · Python {sys.version.split()[0]} · PySide6 {PySide6.__version__}"); return          # antes de mirar si hay otra instancia: no le manda nada a la que esté abierta
+    if "--comprobar" in sys.argv[1:]: sys.exit(comprobar())
     orden = next((servicio.ORDENES[a] for a in sys.argv[1:] if a in servicio.ORDENES), None)
     if servicio.en_marcha():                                                       # ya hay otra instancia: se le pasa la orden (o se le pide que muestre la ventana) y se termina
         servicio.enviar(orden or "Mostrar"); return
