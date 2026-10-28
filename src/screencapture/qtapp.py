@@ -199,7 +199,7 @@ class Ventana(QWidget):
         g = QApplication.primaryScreen().geometry(); return (g.x(), g.y(), g.width(), g.height())
 
     def al_empezar(self):
-        if self.zona_grabada: self.marco = marco.Marco(self.zona_grabada); self.marco.mostrar()          # la línea queda fuera de la zona: no sale en el vídeo
+        if self.zona_grabada: self.marco = marco.Marco(self.zona_grabada); self.marco.movida.connect(lambda r: self.grab.mover_zona(r.x(), r.y())); self.marco.mostrar()          # la línea queda fuera de la zona: no sale en el vídeo
         self.boton.setText(_("Detener")); self.boton.setEnabled(True); self.pausa.setEnabled(not self.directo_activo); self.b_directo.setText(_("Detener la transmisión") if self.directo_activo else self.b_directo.text()); self.b_directo.setEnabled(bool(self.directo_activo)); self.reloj.start(500)
         if self.camara.isChecked(): self.cambiar_camara(True)          # la burbuja vive solo mientras se graba
         self.tic()

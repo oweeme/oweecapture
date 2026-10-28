@@ -10,13 +10,14 @@ SUAVIZADO = 0.12           # fracción del camino que recorre la cámara en cada
 
 def pista(muestras, meta):
     """[[ms, x, y], …] de la pantalla → [(segundos de vídeo, x, y)] en píxeles del vídeo. Se descartan las muestras anteriores al inicio o tomadas en pausa y se restan las pausas
-    (el vídeo no las contiene). `meta`: t0, pausas [(inicio, fin)] en hora de reloj, pantalla (x, y, ancho, alto lógicos), flujo (ancho, alto del portal) y recorte (x, y, ancho, alto) o None."""
-    px, py, pw, ph = meta["pantalla"]; fx = meta["flujo"][0] / pw; fy = meta["flujo"][1] / ph; rx, ry = meta["recorte"][:2] if meta.get("recorte") else (0, 0)
+    (el vídeo no las contiene). `meta`: t0, pausas [(inicio, fin)] en hora de reloj, pantalla (x, y, ancho, alto lógicos), flujo (ancho, alto del portal) y recorte (x, y, ancho, alto) o None; `movimientos` [(segundo de vídeo, x, y)] si la zona se movió durante la grabación (la esquina del recorte en cada momento)."""
+    px, py, pw, ph = meta["pantalla"]; fx = meta["flujo"][0] / pw; fy = meta["flujo"][1] / ph; rx0, ry0 = meta["recorte"][:2] if meta.get("recorte") else (0, 0); movs = sorted(meta.get("movimientos") or []); tm = [m[0] for m in movs]
     fin = []
     for ms, x, y in sorted(muestras):
         w = ms / 1000
         if w < meta["t0"] or any(a <= w < b for a, b in meta["pausas"]): continue
-        fin.append((w - meta["t0"] - sum(b - a for a, b in meta["pausas"] if b <= w), (x - px) * fx - rx, (y - py) * fy - ry))
+        t = w - meta["t0"] - sum(b - a for a, b in meta["pausas"] if b <= w); i = bisect.bisect_right(tm, t) - 1; rx, ry = (movs[i][1], movs[i][2]) if i >= 0 else (rx0, ry0)         # esquina del recorte en ese instante
+        fin.append((t, (x - px) * fx - rx, (y - py) * fy - ry))
     return fin
 
 def _suave(x): x = min(max(x, 0.0), 1.0); return x * x * (3 - 2 * x)

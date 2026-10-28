@@ -39,7 +39,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.pausas = []; self.efectos = None; self.directo = None; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.directo = None; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -65,6 +65,21 @@ class Grabador:
             try: r = clips.recortar(mkv, transcurrido, segundos, salida, mezcla); al_listo(r, None if r else _("No se pudo guardar el clip."))
             except Exception as e: al_listo(None, str(e))
         threading.Thread(target=trabajo, daemon=True).start(); return True
+
+    def _recorte(self):
+        """Texto del `videocrop` para la zona actual (el elemento se llama «recorte» para poder moverlo en caliente)."""
+        x, y, w, h = self.rect; ancho, alto = self.flujo; return f"videocrop name=recorte left={x} top={y} right={ancho - x - w} bottom={alto - y - h} ! "
+
+    def mover_zona(self, x, y):
+        """Mueve la zona grabada sin parar nada (como la burbuja de cámara): el tamaño no cambia, solo qué parte de la pantalla entra. Las posiciones son en píxeles de la pantalla; se ajustan a la pantalla y a números pares. Si hay una pausa, se aplica al continuar."""
+        if not (self.corriendo and self.rect and self.flujo[0]): return False
+        ancho, alto = self.flujo; _x, _y, w, h = self.rect; nx = max(0, min(ancho - w, int(x))) & ~1; ny = max(0, min(alto - h, int(y))) & ~1
+        if (nx, ny) == (_x, _y): return False
+        self.rect = (nx, ny, w, h); self.recorte = self._recorte(); self.movs.append((self.segundos(), nx, ny)); el = self.pipe.get_by_name("recorte") if self.pipe is not None else None
+        if el is not None:                       # el orden evita que, entre dos cambios, left + right sumen más que el ancho
+            for prop, v in (("right", ancho - nx - w), ("left", nx)) if nx >= _x else (("left", nx), ("right", ancho - nx - w)): el.set_property(prop, v)
+            for prop, v in (("bottom", alto - ny - h), ("top", ny)) if ny >= _y else (("top", ny), ("bottom", alto - ny - h)): el.set_property(prop, v)
+        return True
 
     def zoom_activo(self):
         return bool(self.corriendo and self.tramos and self.tramos[-1][1] is None)
@@ -126,8 +141,8 @@ class Grabador:
         self.recorte = ""; self.rect = None; ancho, alto = (int(x) for x in dict(r["streams"][0][1]).get("size", (0, 0))); self.flujo = (ancho, alto)
         if self.zona:
             z = self.zona; x, y = z.x() & ~1, z.y() & ~1; w = min(ancho - x, z.width() + (z.x() - x)) & ~1; h = min(alto - y, z.height() + (z.y() - y)) & ~1      # medidas pares: H.264 las exige
-            if ancho and alto and w > 0 and h > 0: self.recorte = f"videocrop left={x} top={y} right={ancho - x - w} bottom={alto - y - h} ! "; self.rect = (x, y, w, h)
-        self.segmentos = []; self.pausada = False; self.cerrando = False; self.final = False; self.en_pausa = 0; self.pausas = []; self.tramos = []; self.aplicado = ""
+            if ancho and alto and w > 0 and h > 0: self.rect = (x, y, w, h); self.recorte = self._recorte()
+        self.segmentos = []; self.pausada = False; self.cerrando = False; self.final = False; self.en_pausa = 0; self.pausas = []; self.tramos = []; self.aplicado = ""; self.movs = [(0.0, self.rect[0], self.rect[1])] if self.rect else []
         if self._lanzar():
             self.t0 = time.time(); self.corriendo = True
             if self.efectos and self.flujo[0]:
@@ -216,7 +231,7 @@ class Grabador:
         if not self.efectos: return None
         from . import kwin
         muestras = kwin.dejar_cursor(); ahora = time.time(); pausas = [(a, min(b, ahora)) for a, b in self.pausas]
-        meta = {"t0": self.t0, "pausas": pausas, "pantalla": self.pantalla, "flujo": self.flujo, "recorte": self.rect, "efectos": self.efectos, "tramos": [tuple(x) for x in self.tramos]}
+        meta = {"t0": self.t0, "pausas": pausas, "pantalla": self.pantalla, "flujo": self.flujo, "recorte": self.rect, "movimientos": list(self.movs), "efectos": self.efectos, "tramos": [tuple(x) for x in self.tramos]}
         return (muestras, meta) if len(muestras) > 10 else None
 
     def _cerrar_sesion(self):

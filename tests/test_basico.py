@@ -1,5 +1,5 @@
 """Pruebas sin interfaz ni compositor: traducciones, tabla de calidades, nombres de archivo y mezcla de audio y vídeo."""
-import json, os, shutil, subprocess, sys, tempfile, unittest
+import json, os, shutil, subprocess, sys, tempfile, time, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from screencapture import audio, clips, core, directo, efectos, herramientas, i18n
 
@@ -212,5 +212,25 @@ class MarcoVertical(unittest.TestCase):
         from screencapture import marco
         for z in (QRect(450, 60, 432, 646), QRect(0, 0, 400, 300), QRect(900, 400, 466, 368)):
             seg = marco.segmentos(z, 1366, 768); self.assertTrue(all(not r.intersects(z) for r in seg)); self.assertTrue(all(r.isEmpty() or QRect(0, 0, 1366, 768).contains(r) for r in seg))          # los que caen fuera de la pantalla (zona pegada al borde) quedan vacíos
+
+class ZonaMovible(unittest.TestCase):
+    def test_asa_y_mover_respetan_la_pantalla(self):
+        from PySide6.QtCore import QPoint, QRect
+        from screencapture import marco
+        z = QRect(450, 90, 396, 560); a = marco.asa(z, 1366, 768); self.assertFalse(a.intersects(z)); self.assertTrue(a.bottom() < z.top())            # el asa va fuera, encima
+        self.assertTrue(marco.asa(QRect(450, 4, 396, 700), 1366, 768).top() > 700)                                                                           # sin sitio arriba: abajo
+        self.assertIsNone(marco.asa(QRect(0, 0, 400, 768), 1366, 768))                                                                                       # sin sitio en ninguno: sin asa
+        self.assertEqual(marco.mover(z, QPoint(5000, -5000), 1366, 768), QRect(1366 - 396, 0, 396, 560)); self.assertEqual(marco.mover(z, QPoint(10, 20), 1366, 768), QRect(460, 110, 396, 560))
+    def test_mover_zona_cambia_el_recorte_sin_cambiar_el_tamano_y_lo_anota(self):
+        from screencapture import portal
+        g = portal.Grabador(); g.corriendo = True; g.t0 = time.time(); g.flujo = (1366, 768); g.rect = (100, 60, 432, 646); g.recorte = g._recorte(); g.movs = [(0.0, 100, 60)]
+        self.assertTrue(g.mover_zona(701, 61)); self.assertEqual(g.rect, (700, 60, 432, 646))                  # números pares
+        self.assertIn("left=700 top=60 right=234 bottom=62", g.recorte); self.assertEqual(g.movs[-1][1:], (700, 60))
+        self.assertFalse(g.mover_zona(700, 60)); g.mover_zona(9999, 9999); self.assertEqual(g.rect, (1366 - 432, 768 - 646, 432, 646)); g.mover_zona(-50, -50); self.assertEqual(g.rect[:2], (0, 0))
+        g.corriendo = False; self.assertFalse(g.mover_zona(10, 10))
+    def test_pista_sigue_la_esquina_del_recorte_en_cada_momento(self):
+        meta = {"t0": 100.0, "pausas": [], "pantalla": (0, 0, 1000, 500), "flujo": (1000, 500), "recorte": (100, 0, 400, 500), "movimientos": [(0.0, 100, 0), (5.0, 300, 0)]}
+        m = [[101_000, 400, 250], [106_000, 400, 250]]           # el mismo punto de la pantalla, antes y después de mover la zona
+        self.assertEqual(efectos.pista(m, meta), [(1.0, 300.0, 250.0), (6.0, 100.0, 250.0)])
 
 if __name__ == "__main__": unittest.main()
