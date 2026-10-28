@@ -372,6 +372,65 @@ class PaqueteDeb(unittest.TestCase):
             if os.path.exists(deb): os.remove(deb)
         self.assertNotEqual(subprocess.run([os.path.join(raiz, "packaging", "crear_deb.sh"), "no valida!"], capture_output=True, cwd=raiz).returncode, 0)          # una versión inválida se rechaza
 
+class EscritorioIncompleto(unittest.TestCase):
+    """Reproduce lo que pasó en Deepin: el portal y «KWin» EXISTEN en el bus de D-Bus pero no ofrecen lo que OweeCapture les pide (atajos globales, captura por portal, /Scripting).
+    Antes, la excepción del portal sin GlobalShortcuts tumbaba el arranque y la aplicación no abría; ahora debe abrir y avisar."""
+    FALSO = """
+import dbus, dbus.service, dbus.mainloop.glib
+from gi.repository import GLib
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); bus = dbus.SessionBus()
+n1 = dbus.service.BusName("org.freedesktop.portal.Desktop", bus); n2 = dbus.service.BusName("org.kde.KWin", bus)
+class Portal(dbus.service.Object):
+    @dbus.service.method("org.freedesktop.portal.Settings", out_signature="s")
+    def Otra(self): return "x"
+class Kwin(dbus.service.Object):
+    @dbus.service.method("org.kde.KWin", out_signature="s")
+    def Otra(self): return "x"
+Portal(bus, "/org/freedesktop/portal/desktop"); Kwin(bus, "/KWin"); GLib.MainLoop().run()
+"""
+    COMPROBADOR = """
+import time
+from PySide6.QtWidgets import QApplication
+app = QApplication([])
+from oweecapture import qtapp, kwin, portal, captura
+errores = []; g = portal.Grabador(); g.iniciar("youtube", 24, False, False, lambda: errores.append("empezo"), lambda m: errores.append("fallo"), None, None)
+c = []; captura.tomar(lambda i: c.append("imagen"), lambda m: c.append("fallo"))
+v = qtapp.Ventana(); t = time.time()
+while time.time() - t < 1.0: app.processEvents(); time.sleep(0.02)
+print("RESULTADO", kwin.disponible(), errores, c, "atajos globales" in v.estado.text(), v.zoom.isEnabled())
+"""
+    @unittest.skipUnless(shutil.which("dbus-daemon"), "sin dbus-daemon")
+    def test_la_aplicacion_abre_y_avisa_aunque_el_portal_y_kwin_esten_incompletos(self):
+        import time
+        raiz = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        with tempfile.TemporaryDirectory() as d:
+            bus = subprocess.Popen(["dbus-daemon", "--session", "--nofork", "--print-address=1"], stdout=subprocess.PIPE, text=True); falso = None
+            try:
+                env = {**os.environ, "DBUS_SESSION_BUS_ADDRESS": bus.stdout.readline().strip(), "QT_QPA_PLATFORM": "offscreen", "PYTHONPATH": os.path.join(raiz, "src"), "XDG_CONFIG_HOME": d, "XDG_CACHE_HOME": d, "XDG_DATA_HOME": d}; env.pop("OWEECAPTURE_SIN_ATAJOS", None)
+                falso = subprocess.Popen([sys.executable, "-c", self.FALSO], env=env); time.sleep(1.5)
+                r = subprocess.run([sys.executable, "-W", "ignore", "-c", self.COMPROBADOR], env=env, capture_output=True, text=True, timeout=90)
+                self.assertEqual(r.returncode, 0, r.stderr[-1500:]); self.assertNotIn("Traceback", r.stderr, r.stderr[-1500:])
+                linea = next(l for l in r.stdout.splitlines() if l.startswith("RESULTADO")); self.assertEqual(linea, "RESULTADO False ['fallo'] ['fallo'] True False")          # KWin falso ≠ KWin; grabar y capturar avisan; los atajos avisan; zoom desactivado
+            finally:
+                for p in (falso, bus):
+                    if p: p.terminate(); p.wait(timeout=5)
+
+class KWinReal(unittest.TestCase):
+    """Contra el KWin de verdad (solo si se ejecuta dentro de una sesión de KDE Plasma): la regresión de «mantener_encima devuelve False» pasó de largo porque ninguna prueba hablaba con KWin."""
+    @staticmethod
+    def hay_kwin():
+        try:
+            import dbus; return dbus.SessionBus().name_has_owner("org.kde.KWin")
+        except Exception: return False
+    def test_carga_y_descarga_scripts_y_sigue_el_cursor(self):
+        if not self.hay_kwin(): self.skipTest("no hay KWin en esta sesión")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QCoreApplication
+        from oweecapture import kwin
+        QCoreApplication.instance() or QCoreApplication([])
+        self.assertTrue(kwin.disponible()); self.assertTrue(kwin.mantener_encima(["OweeCapture — prueba de test"])); self.assertTrue(kwin.seguir_cursor())
+        kwin.descargar_todo(); kwin.dejar_cursor(); self.assertEqual(kwin._cargados, []); self.assertFalse(kwin._siguiendo[0])
+
 class Clips(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg"), "sin ffmpeg")
     def test_recorta_los_ultimos_segundos_con_su_audio(self):

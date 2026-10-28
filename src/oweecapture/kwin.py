@@ -18,7 +18,7 @@ class _Interfaz:
     def call(self, metodo, *args):
         try:
             extra = {"signature": "s" * len(args)} if args and all(isinstance(x, str) for x in args) else {}          # KWin ofrece loadScript(ruta) y loadScript(ruta, nombre): sin firma explícita dbus-python elige la primera y falla
-            r = getattr(dbus.Interface(dbus.SessionBus().get_object("org.kde.KWin", self.ruta), self.interfaz), metodo)(*args, timeout=_TIEMPO, **extra)
+            r = getattr(dbus.Interface(dbus.SessionBus().get_object("org.kde.KWin", self.ruta, introspect=False), self.interfaz), metodo)(*args, timeout=_TIEMPO, **extra)          # sin introspección: más rápido y sin el aviso de dbus-python si el objeto no existe
             return _Respuesta([] if r is None else [r])
         except dbus.DBusException as e: return _Respuesta([str(e)])
 
@@ -31,7 +31,11 @@ def _entero(respuesta):
 
 def disponible():
     """True solo si hay un KWin en la sesión (KDE Plasma). En GNOME, Deepin sin KWin o una sesión sin bus, False."""
-    try: return bool(dbus.SessionBus().name_has_owner("org.kde.KWin"))
+    try:
+        bus = dbus.SessionBus()
+        if not bus.name_has_owner("org.kde.KWin"): return False
+        dbus.Interface(bus.get_object("org.kde.KWin", "/Scripting", introspect=False), "org.kde.kwin.Scripting").isScriptLoaded("oweecapture-sonda", timeout=3, signature="s")          # el KWin de Deepin se anuncia con el mismo nombre pero no tiene /Scripting: no sirve
+        return True
     except dbus.DBusException: return False
 
 def mantener_encima(titulos):

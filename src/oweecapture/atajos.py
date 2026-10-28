@@ -19,9 +19,10 @@ class Atajos(QObject):
         super().__init__(); dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); self.n = 0
 
     def iniciar(self):
-        self.bus = dbus.SessionBus()
+        try: self.bus = dbus.SessionBus()
+        except (dbus.DBusException, TypeError, ValueError) as e: self.fallo.emit(str(e)); return
         try: self.gs = dbus.Interface(self.bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.GlobalShortcuts")
-        except dbus.DBusException as e: self.fallo.emit(str(e)); return
+        except (dbus.DBusException, TypeError, ValueError) as e: self.fallo.emit(str(e)); return
         self.bus.add_signal_receiver(lambda ses, id_, t, op: self.activado.emit(str(id_)), "Activated", "org.freedesktop.portal.GlobalShortcuts")
         self._peticion(self.gs.CreateSession, opciones={"session_handle_token": f"sc{os.getpid()}"}, siguiente=self._asignar)
 
@@ -31,7 +32,9 @@ class Atajos(QObject):
         def respuesta(codigo, resultados):
             if codigo != 0: self.fallo.emit("portal GlobalShortcuts: " + str(int(codigo))); return
             siguiente(resultados)
-        self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta); metodo(*args, opciones)
+        self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
+        try: metodo(*args, opciones)
+        except (dbus.DBusException, TypeError, ValueError) as e: self.fallo.emit(str(e))          # p. ej. Deepin: el portal no ofrece GlobalShortcuts. Antes esta excepción llegaba hasta el arranque y la aplicación no abría
 
     def _asignar(self, r):
         self.sesion = r["session_handle"]

@@ -100,7 +100,8 @@ class Grabador:
             if codigo != 0: fallo(_("Se canceló la elección de pantalla.") if codigo == 1 else _("El portal de pantalla falló.")); return
             siguiente(resultados)
         self.bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
-        metodo(*args, opciones)
+        try: metodo(*args, opciones)
+        except (dbus.DBusException, TypeError, ValueError) as e: fallo(_("Tu escritorio no ofrece la captura de pantalla por portal (ScreenCast): ") + str(e).split(":")[-1].strip())
 
     def iniciar(self, calidad="media", fps=24, sistema=True, mic=False, al_empezar=None, al_fallar=None, zona=None, al_terminar=None, max_mb=0, efectos=None, pantalla=None, mezcla=(1.0, 1.0, 0), directo=None):
         """`zona`: QRect en píxeles de la pantalla (o None para todo). El portal entrega la pantalla entera y la zona se recorta en la tubería.
@@ -110,7 +111,8 @@ class Grabador:
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
-        self.bus = dbus.SessionBus(); self.sc = dbus.Interface(self.bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.ScreenCast")
+        try: self.bus = dbus.SessionBus(); self.sc = dbus.Interface(self.bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.ScreenCast")
+        except (dbus.DBusException, TypeError, ValueError) as e: self.al_fallar(_("No hay portal de pantalla (xdg-desktop-portal) en esta sesión: ") + str(e).split(":")[-1].strip()); return
         f = self._fallo
         self._peticion(self.sc.CreateSession, opciones={"session_handle_token": f"s{os.getpid()}"}, fallo=f, siguiente=self._elegir)
 

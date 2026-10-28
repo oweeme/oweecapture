@@ -338,9 +338,13 @@ def bandeja(v):
 
 def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
 
+def _plataforma():
+    """Deepin define QT_QPA_PLATFORM=dxcb, un complemento de Qt5 propio que PySide6 (Qt6) no tiene («Could not find the Qt platform plugin dxcb»): se sustituye por la plataforma normal."""
+    if os.environ.get("QT_QPA_PLATFORM") == "dxcb": os.environ["QT_QPA_PLATFORM"] = "wayland;xcb" if os.environ.get("WAYLAND_DISPLAY") else "xcb"
+
 def comprobar():
     """Autoprueba para instaladores y la integración continua: arranca Qt sin pantalla, crea la ventana principal y comprueba lo imprescindible (ffmpeg y los complementos de GStreamer). Imprime una línea por cosa; devuelve 0 si todo lo imprescindible está, 1 si no."""
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen"); os.environ["OWEECAPTURE_SIN_ATAJOS"] = "1"          # sin pantalla y sin registrar atajos en el escritorio de quien lo ejecute
+    _plataforma(); os.environ.setdefault("QT_QPA_PLATFORM", "offscreen"); os.environ["OWEECAPTURE_SIN_ATAJOS"] = "1"          # sin pantalla y sin registrar atajos en el escritorio de quien lo ejecute
     import PySide6; falta = []; print(f"OweeCapture {autor.VERSION} · Python {sys.version.split()[0]} · PySide6 {PySide6.__version__}")
     app = QApplication(sys.argv[:1]); v = Ventana(); app.processEvents(); print(f"  ventana principal: ok ({v.pestanas.count()} pestañas) · plataforma gráfica de Qt: {app.platformName()}")
     import gi; gi.require_version("Gst", "1.0")
@@ -353,6 +357,7 @@ def comprobar():
     print("RESULTADO:", "todo lo imprescindible está" if not falta else "faltan: " + ", ".join(falta)); return 1 if falta else 0
 
 def main():
+    _plataforma()
     if "--version" in sys.argv[1:]:
         import PySide6; print(f"OweeCapture {autor.VERSION} · Python {sys.version.split()[0]} · PySide6 {PySide6.__version__}"); return          # antes de mirar si hay otra instancia: no le manda nada a la que esté abierta
     if "--comprobar" in sys.argv[1:]: sys.exit(comprobar())

@@ -11,8 +11,9 @@ _n = [0]
 
 def tomar(al_listo, al_fallar):
     """Pide al portal una captura de toda la pantalla. `al_listo(QImage)` o `al_fallar(mensaje)`, en el hilo de la interfaz."""
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); bus = dbus.SessionBus()
-    portal = dbus.Interface(bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.Screenshot")
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    try: bus = dbus.SessionBus(); portal = dbus.Interface(bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.Screenshot")
+    except (dbus.DBusException, TypeError, ValueError) as e: al_fallar(_("No hay portal de pantalla (xdg-desktop-portal) en esta sesión: ") + str(e).split(":")[-1].strip()); return
     _n[0] += 1; token = f"shot{os.getpid()}_{_n[0]}"; ruta = f"/org/freedesktop/portal/desktop/request/{bus.get_unique_name()[1:].replace('.', '_')}/{token}"
     def respuesta(codigo, resultados):
         if codigo != 0: al_fallar(_("Se canceló la captura.") if codigo == 1 else _("El portal no pudo capturar la pantalla.")); return
@@ -22,7 +23,8 @@ def tomar(al_listo, al_fallar):
         if img.isNull(): al_fallar(_("No se pudo leer la captura.")); return
         al_listo(img)
     bus.add_signal_receiver(respuesta, "Response", "org.freedesktop.portal.Request", path=ruta)
-    portal.Screenshot("", {"handle_token": token, "interactive": False, "modal": False})
+    try: portal.Screenshot("", {"handle_token": token, "interactive": False, "modal": False})
+    except (dbus.DBusException, TypeError, ValueError) as e: al_fallar(_("Tu escritorio no ofrece capturas por portal: ") + str(e).split(":")[-1].strip())
 
 def guardar(img, copiar=True):
     """Guarda `img` como PNG en la carpeta de capturas y, si se pide, la copia al portapapeles. Devuelve la ruta."""
