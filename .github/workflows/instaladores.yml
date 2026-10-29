@@ -57,7 +57,7 @@ jobs:
             SP=$(/tmp/entorno-aislado/bin/python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
             ! /tmp/entorno-aislado/bin/python -c "import oweecapture" 2>/dev/null           # sin el .pth no lo ve (reproduce el fallo)
             echo /usr/lib/python3/dist-packages > "$SP/oweecapture-sistema.pth"            # el mismo mecanismo que escribe la instalación
-            /tmp/entorno-aislado/bin/python -c "import oweecapture, gi, dbus; print('con el .pth ve oweecapture, gi y dbus')"
+            PYTHONPATH=/usr/lib/oweecapture /tmp/entorno-aislado/bin/python -c "import oweecapture, gi, dbus; print('con el .pth y PYTHONPATH ve oweecapture, gi y dbus')"
             echo "contenido del .pth que escribió la instalación:"; cat /opt/oweecapture/venv/lib/python3*/site-packages/oweecapture-sistema.pth
           else echo "esta distribución usa el PySide6 del sistema: no hay entorno propio que comprobar"; fi
       - name: Comprobar que Qt abre una ventana en una sesión X11 (pantalla virtual)
@@ -127,8 +127,11 @@ jobs:
         run: dpkg -i ./deb/*.deb
       - name: Después de actualizar debe seguir funcionando
         run: |
-          oweecapture --version
-          oweecapture --comprobar
+          # desde un proceso sin terminal el lanzador guarda los errores en el registro de arranque: se imprime si falla
+          fallo() { echo "--- registro de arranque:"; cat "$HOME/.cache/oweecapture/arranque.log" 2>/dev/null; ls -la /usr/lib/oweecapture /usr/lib/python3/dist-packages/oweecapture 2>&1 | head; exit 1; }
+          oweecapture --version || fallo
+          oweecapture --comprobar || fallo
+          test -d /usr/lib/oweecapture/oweecapture
 
   probar-script:
     name: install.sh en ${{ matrix.imagen }}

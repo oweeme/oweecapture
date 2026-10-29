@@ -6,16 +6,18 @@ RAIZ="$(cd "$(dirname "$0")/.." && pwd)"; cd "$RAIZ"
 VERSION="${1:-$(python3 -c 'import re,sys; print(re.search(r"__version__ = \"([^\"]+)\"", open("src/oweecapture/__init__.py").read()).group(1))')}"; VERSION="${VERSION#v}"
 [[ "$VERSION" =~ ^[0-9][0-9A-Za-z.+~-]*$ ]] || { echo "versión no válida: $VERSION" >&2; exit 1; }
 PKG="oweecapture_${VERSION}_all"; B="$(mktemp -d)/$PKG"; trap 'rm -rf "$(dirname "$B")"' EXIT
-mkdir -p "$B/DEBIAN" "$B/usr/lib/python3/dist-packages" "$B/usr/bin" "$B/usr/share/applications" "$B/usr/share/oweecapture/locales" "$B/usr/share/icons/hicolor/scalable/apps" "$B/usr/share/doc/oweecapture"
+mkdir -p "$B/DEBIAN" "$B/usr/lib/oweecapture" "$B/usr/bin" "$B/usr/share/applications" "$B/usr/share/oweecapture/locales" "$B/usr/share/icons/hicolor/scalable/apps" "$B/usr/share/doc/oweecapture"
 
-# código (sin cachés)
-cp -r src/oweecapture "$B/usr/lib/python3/dist-packages/oweecapture"; find "$B" -name __pycache__ -type d -prune -exec rm -rf {} +
+# código (sin cachés) en /usr/lib/oweecapture, una carpeta propia: el postrm de las versiones <= 0.1.4 borraba /usr/lib/python3/dist-packages/oweecapture al ACTUALIZAR y dpkg lo ejecuta después de desempaquetar la nueva
+#   versión, así que el programa desaparecía. Fuera de dist-packages ese borrado ya no le alcanza.
+cp -r src/oweecapture "$B/usr/lib/oweecapture/oweecapture"; find "$B" -name __pycache__ -type d -prune -exec rm -rf {} +
 # comando
 cat > "$B/usr/bin/oweecapture" <<'EOF'
 #!/bin/sh
 # Si el instalador tuvo que crear un entorno propio con PySide6 (la distribucion no lo empaqueta), se usa ese; si no, el Python del sistema.
 # Desde el menu no hay terminal: los errores de arranque (p. ej. a Qt le falta una biblioteca) se guardan en ~/.cache/oweecapture/arranque.log
 if [ ! -t 2 ]; then d="${XDG_CACHE_HOME:-$HOME/.cache}/oweecapture"; mkdir -p "$d" 2>/dev/null && exec 2>>"$d/arranque.log"; fi
+export PYTHONPATH="/usr/lib/oweecapture${PYTHONPATH:+:$PYTHONPATH}"          # el programa vive en /usr/lib/oweecapture
 V=/opt/oweecapture/venv/bin/python
 if [ -x "$V" ] && "$V" -c "import oweecapture, PySide6.QtWidgets" >/dev/null 2>&1; then exec "$V" -m oweecapture.qtapp "$@"; fi          # un entorno roto no impide arrancar: se cae al Python del sistema
 exec /usr/bin/python3 -m oweecapture.qtapp "$@"
@@ -49,7 +51,8 @@ cat > "$B/DEBIAN/postinst" <<'EOF'
 set -e
 if [ "$1" = "configure" ]; then
     PY=/usr/bin/python3; [ -x "$PY" ] || PY=python3          # SIEMPRE el Python del sistema: un python3 de /usr/local o de pyenv/conda no ve los paquetes de la distribucion (gi, dbus, oweecapture)
-    $PY -m compileall -q /usr/lib/python3/dist-packages/oweecapture >/dev/null 2>&1 || true
+    rm -rf /usr/lib/python3/dist-packages/oweecapture          # restos de versiones <= 0.1.4, que instalaban aqui
+    $PY -m compileall -q /usr/lib/oweecapture/oweecapture >/dev/null 2>&1 || true
     # PySide6: si la distribucion no lo empaqueta (Ubuntu 24.04, algunas Deepin...), se instala de PyPI en un entorno propio (unos 100 MB); el comando lo usa solo
     if ! $PY -c "import PySide6.QtWidgets" >/dev/null 2>&1; then
         echo "oweecapture: esta distribucion no trae PySide6; se instala desde PyPI (unos 100 MB) en /opt/oweecapture/venv" >&2
@@ -72,11 +75,13 @@ EOF
 cat > "$B/DEBIAN/postrm" <<'EOF'
 #!/bin/sh
 set -e
-rm -rf /usr/lib/python3/dist-packages/oweecapture
-if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then rm -rf /opt/oweecapture; fi
-if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-    command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
-fi
+# SOLO al quitar el paquete (remove/purge). En una actualizacion dpkg ejecuta el postrm de la version vieja DESPUES de desempaquetar la nueva:
+# borrar aqui el programa lo dejaba sin archivos (el fallo de las versiones <= 0.1.4).
+case "$1" in
+    remove|purge)
+        rm -rf /usr/lib/oweecapture /opt/oweecapture
+        command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true ;;
+esac
 exit 0
 EOF
 chmod 755 "$B/DEBIAN/postinst" "$B/DEBIAN/postrm"
