@@ -44,7 +44,7 @@ CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache
 # Perfiles por destino: (preset y crf al grabar, reducción posterior). Al grabar se usa poca CPU y al terminar, en segundo plano y con prioridad baja, se reduce el archivo si el perfil lo pide.
 # WhatsApp / Telegram: se graba con calidad alta (crf 20) y se reduce a 720p con crf 23 y escalado lanczos (texto nítido; medido: bajar de crf 27 a 23 sube el SSIM de 0,9927 a 0,9951 por un 36 % más de tamaño).
 # YouTube: se graba directo con buena compresión y sin reducir (recomprimir después pesaba más). Máxima: casi sin pérdidas, para editar y aplicar efectos (se recomienda 60 fotogramas).
-QUALITY = {"whatsapp": ("ultrafast", 20, {"height": 720, "crf": 23, "fps": 0, "abr": "96k", "preset": "faster"}),
+QUALITY = {"whatsapp": ("ultrafast", 20, {"height": 720, "crf": 23, "fps": 0, "abr": "96k", "preset": "veryfast"}),
            "youtube": ("veryfast", 18, None),
            "maxima": ("veryfast", 12, None)}
 MIN_FREE = 1 << 30      # no se empieza a grabar con menos de 1 GB libre
@@ -90,7 +90,7 @@ def reduce_in_background(path, q, max_mb=0):
     limite = []
     if max_mb and duration(path) > 0:                       # tope de tamaño: crf con velocidad máxima (calidad constante mientras quepa; si no, baja lo justo)
         kbps = max(150, int(max_mb * 8192 * 0.92 / duration(path)) - int(r["abr"].rstrip("k"))); limite = ["-maxrate", f"{kbps}k", "-bufsize", f"{kbps * 2}k"]
-    thr = str(max(1, (os.cpu_count() or 2) // 2))
+    thr = str(max(1, (os.cpu_count() or 2) - 1))
     ff = ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-vf", vf, "-c:v", "libx264", "-preset", r.get("preset", "veryfast"), "-crf", str(r["crf"])] + limite + ["-pix_fmt", "yuv420p", "-threads", thr,
           "-c:a", "aac", "-b:a", r["abr"], "-movflags", "+faststart", tmp]
     script = ('in=$1; tmp=$2; title=$3; shift 3\n'

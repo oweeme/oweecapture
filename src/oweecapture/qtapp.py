@@ -292,7 +292,7 @@ class Ventana(QWidget):
         self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["clip"].setVisible(g and not p); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
-        self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…") + (" " + _("(aplicando zoom y halo: puede tardar)") if self.grab.efectos else "")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
+        self.cerrar_marco(); self.parar_entrada(); self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…") + (" " + _("(aplicando zoom y halo: puede tardar)") if self.grab.efectos else "")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
         self.cambiar_camara(False); self.refrescar_bandeja()
 
     def al_terminar(self, ruta, err):
