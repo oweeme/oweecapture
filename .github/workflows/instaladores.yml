@@ -100,6 +100,36 @@ jobs:
           oweecapture --version
           oweecapture --comprobar
 
+  actualizar-desde-publicada:
+    name: Actualizar encima de la 0.1.4 publicada (${{ matrix.imagen }})
+    needs: construir-deb
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.imagen }}
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: ["debian:12", "ubuntu:25.10"]
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-instalador
+          path: deb
+      - name: Instalar la 0.1.4 publicada (instalación limpia)
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates curl
+          curl -fsSL -o /tmp/publicada.deb https://github.com/oweeme/oweecapture/releases/download/v0.1.4/oweecapture_0.1.4_all.deb
+          apt-get install -y --no-install-recommends /tmp/publicada.deb
+          oweecapture --version
+      - name: Actualizar encima con el .deb nuevo (dpkg ejecuta el postrm de la versión vieja)
+        run: dpkg -i ./deb/*.deb
+      - name: Después de actualizar debe seguir funcionando
+        run: |
+          oweecapture --version
+          oweecapture --comprobar
+
   probar-script:
     name: install.sh en ${{ matrix.imagen }}
     runs-on: ubuntu-24.04
