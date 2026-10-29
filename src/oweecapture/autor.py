@@ -2,6 +2,6 @@
 NOMBRE = "Hector Martinez"
 EMAIL = "hector@oweeme.com"
 WEB = "https://oweeme.com"
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 LICENCIA = "GPL-3.0-or-later"
 DESCRIPCION = "Capturas, grabación de pantalla, directos y herramientas para publicar vídeos (YouTube Shorts, TikTok, Reels)."
