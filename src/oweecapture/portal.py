@@ -11,6 +11,10 @@ from .i18n import _
 
 TOKEN = os.path.join(os.path.dirname(core.CFG), "portal.json")          # elección de pantalla recordada (restore token del portal)
 
+def _es_x11():
+    """Sesión X11 con pantalla disponible (o forzada con OWEECAPTURE_X11=1): se captura sin portal."""
+    return bool(os.environ.get("DISPLAY")) and (os.environ.get("XDG_SESSION_TYPE") == "x11" or os.environ.get("OWEECAPTURE_X11") == "1")
+
 def _leer_token():
     try: return json.load(open(TOKEN)).get("restore_token", "")
     except (OSError, ValueError): return ""
@@ -39,7 +43,7 @@ class Grabador:
     """iniciar() abre el portal (la primera vez muestra el diálogo de KDE/GNOME), arranca la tubería y llama a `al_empezar()`; detener() cierra con EOS y llama a `al_terminar(ruta, error)` desde un hilo."""
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True); Gst.init(None)
-        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.sigue = False; self.directo = None; self.limpiador = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None
+        self.pipe = None; self.sesion = None; self.t0 = 0; self.corriendo = False; self.pausada = False; self.t_pausa = 0; self.en_pausa = 0; self.segmentos = []; self.cerrando = False; self.final = False; self.al_terminar = lambda r, e: None; self.n = 0; self.calidad = "whatsapp"; self.tmp = None; self.movs = []; self.pausas = []; self.movs = []; self.efectos = None; self.sigue = False; self.directo = None; self.limpiador = None; self.red = None; self.estado_red = ""; self.mkv = None; self.t_seg = 0; self.nota = ""; self.tramos = []; self.aplicado = ""; self.pantalla = None; self.flujo = (0, 0); self.rect = None; self.x11 = None
 
     def segundos(self):
         """Tiempo grabado: no cuenta las pausas."""
@@ -111,6 +115,7 @@ class Grabador:
         self.al_empezar = al_empezar or (lambda: None); self.al_fallar = al_fallar or (lambda m: None); self.al_terminar = al_terminar or self.al_terminar
         os.makedirs(core.CACHE, exist_ok=True); core.prune_stale()
         if shutil.disk_usage(core.CACHE).free < core.MIN_FREE: self.al_fallar(_("Queda muy poco espacio en el disco para grabar.")); return
+        if _es_x11(): self._grabar_x11(); return
         try: self.bus = dbus.SessionBus(); self.sc = dbus.Interface(self.bus.get_object("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"), "org.freedesktop.portal.ScreenCast")
         except (dbus.DBusException, TypeError, ValueError) as e: self.al_fallar(_("No hay portal de pantalla (xdg-desktop-portal) en esta sesión: ") + str(e).split(":")[-1].strip()); return
         f = self._fallo
@@ -156,6 +161,26 @@ class Grabador:
                 if not self.sigue: self.efectos = None          # sin KWin no hay posición del cursor: se graba sin zoom ni halo
             self.al_empezar()
 
+    def _fuente_video(self):
+        if self.x11: return f"ximagesrc use-damage=false show-pointer=true do-timestamp=true startx={self.x11[0]} starty={self.x11[1]} endx={self.x11[0] + self.x11[2] - 1} endy={self.x11[1] + self.x11[3] - 1}"
+        return f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000"
+
+    def _grabar_x11(self):
+        """Sesión X11 (p. ej. Deepin): no hay portal ScreenCast, se captura la pantalla directamente con ximagesrc. Sin zoom ni halo automáticos (necesitan KWin)."""
+        from PySide6.QtGui import QGuiApplication
+        if not QGuiApplication.instance(): self.al_fallar(_("No se pudo leer la pantalla.")); return
+        if self.pantalla: x, y, w, h = (int(v) for v in self.pantalla)
+        else: g = QGuiApplication.primaryScreen().geometry(); x, y, w, h = g.x(), g.y(), g.width(), g.height()
+        r = QGuiApplication.primaryScreen().devicePixelRatio(); x, y, w, h = (int(v * r) for v in (x, y, w, h)); w &= ~1; h &= ~1
+        self.x11 = (x, y, w, h); self.nodo = 0; self.fd = -1; self.flujo = (w, h)
+        self.tmp = os.path.join(core.CACHE, f"rec-{os.getpid()}-{core.stamp()}"); os.makedirs(self.tmp, exist_ok=True)
+        self.recorte = ""; self.rect = None
+        if self.zona:
+            z = self.zona; zx, zy = z.x() & ~1, z.y() & ~1; zw = min(w - zx, z.width() + (z.x() - zx)) & ~1; zh = min(h - zy, z.height() + (z.y() - zy)) & ~1
+            if zw > 0 and zh > 0: self.rect = (zx, zy, zw, zh); self.recorte = self._recorte()
+        self.segmentos = []; self.pausada = False; self.cerrando = False; self.final = False; self.en_pausa = 0; self.pausas = []; self.tramos = []; self.aplicado = ""; self.movs = []; self.efectos = None
+        if self._lanzar(): self.t0 = time.time(); self.corriendo = True; self.al_empezar()
+
     def _lanzar_directo(self):
         """Tubería de directo (ver directo.py): una sola codificación para la red y la copia local. La copia queda con el audio ya mezclado en una pista: no hay ajustes posteriores."""
         ancho, alto = (self.rect[2], self.rect[3]) if self.rect else self.flujo
@@ -167,7 +192,7 @@ class Grabador:
             else: self.limpiador = None; self.nota = _("sin reducción de ruido (no disponible en este equipo)")
         fuentes = ([('pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true', self.mezcla[1])] if self.sistema else []) + ([(mic, self.mezcla[2])] if self.mic else [])
         if self.mic and self.mezcla[3] == 2: fuentes = [(o + " ! audiodynamic mode=expander characteristics=soft-knee threshold=0.02 ratio=3.0", v) if "target-object" in o else (o, v) for o, v in fuentes]          # «fuerte»: además una puerta que baja el micrófono entre frases
-        desc = dir_.descripcion(f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000", self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv)
+        desc = dir_.descripcion(self._fuente_video(), self.recorte, self.fps, self.directo["kbps"], dir_.dimensiones(ancho, alto, self.directo["alto"]), fuentes, self.mkv)
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False
         self.mezcla = (["sistema"], 1.0, 1.0, 0)
@@ -192,7 +217,7 @@ class Grabador:
         if self.sistema: audio += f'pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true ! {caps} '
         if self.mic: audio += f"pipewiresrc do-timestamp=true ! {caps} "
         desc = (f"matroskamux name=mux ! filesink location={self.mkv} "
-                f"pipewiresrc fd={os.dup(self.fd)} path={self.nodo} do-timestamp=true keepalive-time=1000 ! queue ! videoconvert ! {self.recorte}videorate ! video/x-raw,framerate={self.fps}/1 ! "
+                f"{self._fuente_video()} ! queue ! videoconvert ! {self.recorte}videorate ! video/x-raw,framerate={self.fps}/1 ! "
                 f"x264enc tune=zerolatency speed-preset={preset} pass=qual quantizer={crf} key-int-max={self.fps * 2} ! video/x-h264,profile=high ! h264parse ! queue ! mux. {audio}")
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False

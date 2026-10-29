@@ -357,6 +357,21 @@ class InicioConElEscritorio(unittest.TestCase):
         finally: inicio.shutil.which = real
         self.assertIn("PYTHONPATH=", c); self.assertIn("-m oweecapture.qtapp --segundo-plano", c)
 
+class CapturaX11(unittest.TestCase):
+    def test_sesion_x11_no_usa_el_portal(self):
+        from oweecapture import portal
+        viejo = dict(os.environ)
+        try:
+            os.environ.update(DISPLAY=":9", XDG_SESSION_TYPE="x11"); self.assertTrue(portal._es_x11())
+            os.environ["XDG_SESSION_TYPE"] = "wayland"; os.environ.pop("OWEECAPTURE_X11", None); self.assertFalse(portal._es_x11())
+            os.environ["OWEECAPTURE_X11"] = "1"; self.assertTrue(portal._es_x11())
+        finally: os.environ.clear(); os.environ.update(viejo)
+
+    def test_fuente_ximagesrc_con_la_pantalla(self):
+        from oweecapture import portal
+        c = portal.Grabador.__new__(portal.Grabador); c.x11 = (0, 0, 1920, 1080)
+        f = c._fuente_video(); self.assertIn("ximagesrc", f); self.assertIn("endx=1919", f); self.assertIn("endy=1079", f)
+
 class PaqueteDeb(unittest.TestCase):
     @unittest.skipUnless(shutil.which("dpkg-deb"), "sin dpkg-deb")
     def test_el_deb_trae_el_comando_el_lanzador_las_traducciones_y_ninguna_cache(self):
