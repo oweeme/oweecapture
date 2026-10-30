@@ -2,64 +2,50 @@
 
 # OweeCapture
 
-Capturas de pantalla con editor de anotaciones, grabación de vídeo con audio del sistema, micrófono y cámara, y modo presentación para dibujar sobre la pantalla. Pensado para Wayland, poco consumo de CPU y vídeos pequeños (niveles de calidad: original, buena, intermedia y básica para WhatsApp y Telegram).
+Grabadora de pantalla, capturas, directos y herramientas de vídeo para Linux, pensada para quien hace **tutoriales y contenido** (YouTube, TikTok, Shorts, Reels, WhatsApp).
 
-**Estado:** versión 0.1, extraída de la «Capturadora» de OweeLinux. Hoy funciona en compositores basados en wlroots (labwc, sway, Hyprland, River…). El plan para llegar a GNOME y KDE está en [PLAN.md](PLAN.md).
+- **Graba** la pantalla, una zona o en vertical 9:16, con audio del sistema, micrófono y burbuja de cámara.
+- **Transmite en directo** por RTMP a YouTube, TikTok, Twitch u otro servidor, guardando una copia local.
+- **Ayuda a explicar**: zoom con una tecla, clips de los últimos segundos, modo presentación para dibujar sobre la pantalla, clics y teclas en pantalla.
+- **Termina el vídeo**: recortar, cortar silencios, pasar a vertical y subtítulos automáticos (todo en tu equipo, nada sale a internet).
 
-## Instalar
-Las dos vías se **prueban en cada subida** en contenedores limpios de GitHub Actions (`.github/workflows/instaladores.yml`): se instala de verdad y se ejecuta `oweecapture --comprobar`. Solo Linux con Wayland y el portal de pantalla (hoy lo más probado es KDE; mira *Escritorios* abajo).
+Autor: Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · Licencia GPL-3.0-or-later.
 
-**Debian, Ubuntu, Deepin, Mint y derivadas (apt):** descarga el `.deb` de la [última versión](../../releases/latest) e instálalo con `sudo apt install ./oweecapture_<versión>_all.deb`. Probado en Debian 12 y 13 y en Ubuntu 24.04 y 25.10. Si tu distribución trae los paquetes `python3-pyside6.*` (Debian 13, Ubuntu 25.04+, KDE neon) usa esos; si no (Debian 12, Ubuntu 24.04, Deepin 23), **la instalación descarga PySide6 de PyPI (~100 MB) a `/opt/oweecapture/venv`** y el comando lo usa solo; se quita con el paquete. Hace falta red durante la instalación en ese caso.
+## Empezar en 3 pasos
 
-**Cualquier otra distribución (Fedora, Arch/Manjaro, openSUSE…) o sin apt:** descarga el código fuente de la release (`oweecapture-<versión>-fuente.tar.gz`) o clona el repositorio y ejecuta `./install.sh --dependencias` (instala en `~/.local`, un entorno de Python propio con PySide6 de PyPI, el comando, el lanzador y los iconos; **pide confirmación antes de usar `sudo`** y muestra la orden exacta de tu gestor de paquetes). `./install.sh --desinstalar` quita solo lo suyo. Probado en Ubuntu, Fedora, Arch y openSUSE Tumbleweed. **Fedora** no incluye los codificadores H.264 y AAC: activa [RPM Fusion](https://rpmfusion.org/Configuration) e instala `gstreamer1-plugins-ugly gstreamer1-libav ffmpeg` (el script te lo recuerda).
+1. **Instala** (Debian, Ubuntu, Deepin, Mint): descarga el `.deb` de la [última versión](../../releases/latest) y ejecuta `sudo apt install ./oweecapture_<versión>_all.deb`.
+   Otras distribuciones (Fedora, Arch, openSUSE…): [docs/INSTALACION.md](docs/INSTALACION.md).
+2. **Ábrela** desde el menú de aplicaciones («OweeCapture») y comprueba con `oweecapture --version`.
+3. **Graba**: pulsa *Grabar*, elige la zona y listo. Se guarda en `Vídeos/Screen Recordings`.
 
-**Comprobar una instalación:** `oweecapture --version` y `oweecapture --comprobar` (arranca Qt sin pantalla y dice qué falta: ffmpeg, complementos de GStreamer…).
+Para que los atajos respondan desde que arranca el escritorio, activa «Iniciar OweeCapture al abrir la sesión» en la pestaña *Grabar*.
 
-**Desde el código:** `PYTHONPATH=src python3 -m oweecapture.qtapp`.
+## Atajos
 
-**Si no abre nada:** lánzalo desde una terminal (`oweecapture`) para ver el error, o mira el registro `~/.cache/oweecapture/arranque.log` (desde el menú no hay terminal y ahí se guardan los errores de arranque). `oweecapture --comprobar` dice qué falta. Si Qt se queja de «xcb» o de «platform plugin», faltan bibliotecas gráficas: `sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1` (el `.deb` desde la 0.1.2 ya las exige).
+| Atajo | Orden (para escritorios sin atajos globales) | Qué hace |
+|---|---|---|
+| `Ctrl+Alt+R` | `oweecapture --record` | Empezar / detener la grabación |
+| `Ctrl+Alt+S` | `oweecapture --shot` | Captura de pantalla |
+| `Ctrl+Alt+P` | — | Pausar / continuar |
+| `Ctrl+Alt+Z` | — | Acercar / alejar (zoom) mientras grabas |
+| `Ctrl+Alt+G` | — | Guardar un clip de los últimos segundos |
+| `Ctrl+Alt+D` | `oweecapture --present` | Modo presentación (dibujar en pantalla) |
+| `Ctrl+Alt+C` | `oweecapture --camera` | Quitar / poner la burbuja de la cámara mientras grabas |
+| — | `oweecapture --quit` | Cerrar el programa |
 
-**Atajos en escritorios sin atajos globales para aplicaciones (Deepin, GNOME antes de la 48…):** crea los tuyos en los ajustes de teclado, con estas órdenes: `oweecapture --record` (grabar/detener), `--shot` (captura), `--present` (modo presentación), `--camera` (quitar o poner la burbuja de la cámara mientras grabas), `--quit`. Si la tecla que quieres ya la usa el sistema (en Deepin `Ctrl+Alt+R` es su grabador), elige otra, p. ej. `Ctrl+Alt+Shift+R`. Para que arranque sola y atienda esas órdenes al iniciar sesión, activa «Iniciar OweeCapture al abrir la sesión» en la pestaña *Grabar*.
+## Documentación
 
-**Escritorios:** la captura usa el portal de pantalla y PipeWire, así que sirve donde haya un portal con *ScreenCast* (KDE Plasma, GNOME en Wayland…). Probado de verdad en KDE Plasma 6; en **GNOME** y **Deepin** falta probarlo en un escritorio real: sin bandeja visible ni atajos globales (GNOME antes de la 48 no los ofrece) conviene crear los atajos a mano con `oweecapture --record` y `--shot`, y la burbuja de cámara y el marco no se pueden mantener siempre encima como en KDE.
+| Quiero… | Lee |
+|---|---|
+| Aprender a usarla, tarea por tarea | [docs/GUIA.md](docs/GUIA.md) |
+| Instalar, actualizar o desinstalar | [docs/INSTALACION.md](docs/INSTALACION.md) |
+| Arreglar un problema (no graba, no abre, sin atajos…) | [docs/PROBLEMAS.md](docs/PROBLEMAS.md) |
+| Ver qué funciona en cada escritorio | [docs/ESCRITORIOS.md](docs/ESCRITORIOS.md) |
+| Ver qué cambió en cada versión | [CHANGELOG.md](CHANGELOG.md) |
+| Programar, probar y publicar versiones | [docs/DESARROLLO.md](docs/DESARROLLO.md) |
 
-**Windows: todavía no hay instalador, y no se puede fingir uno.** OweeCapture depende del portal de pantalla de Linux (xdg-desktop-portal + PipeWire), de GStreamer y de D-Bus. Portarlo a Windows exige escribir otra captura (ffmpeg `ddagrab`/`gdigrab`), el audio del sistema (WASAPI), los atajos globales (`RegisterHotKey`) y probarlo en un Windows real: es el hito M5b del [plan](PLAN.md). Un instalador sin eso se abriría y no grabaría nada.
+Otros documentos del proyecto: [PLAN.md](PLAN.md) (hoja de ruta) y [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md) (por qué Python y Qt).
 
-## Qué hace hoy (interfaz Qt, probada en KDE neon con Plasma 6 en Wayland)
+## Estado
 
-**Atajos desde que arranca el escritorio:** activa «Iniciar OweeCapture al abrir la sesión» (pestaña *Grabar*, bloque *Al iniciar sesión*): crea `~/.config/autostart/oweecapture.desktop`, que arranca la aplicación en segundo plano (solo el icono de la bandeja y los atajos) y así `Ctrl+Alt+R`, `Ctrl+Alt+S`, etc. responden desde el primer momento, sin abrir la ventana. Si prefieres no tenerla siempre en marcha, el lanzador trae acciones (*Take a screenshot*, *Start or stop recording*, *Presentation mode*) a las que puedes asignar un atajo en los ajustes de tu escritorio: lanzan la aplicación si no está abierta.
-
-**Ventana:** tres pestañas con scroll (*Grabar*, *Audio y cámara*, *Directo*), los botones de grabar y pausar siempre a la vista, el botón «Mostrar» para ver u ocultar la clave de transmisión (se vuelve a tapar al ocultar la ventana y al empezar un directo) y «Acerca de» con el autor. Los datos del autor están en `src/oweecapture/autor.py`.
-- `Ctrl+Alt+S` o `oweecapture --shot`: captura por el portal del escritorio, con selector de zona (arrastrar; Enter o Espacio para toda la pantalla; Esc cancela). Se guarda en Imágenes/Screenshots y se copia al portapapeles.
-- `Ctrl+Alt+R` o `oweecapture --record`: elige la zona y empieza a grabar; otra vez para detener. Audio del sistema y micrófono, cuatro niveles de calidad (la reducción se hace al terminar, en segundo plano), pausa y continuar desde el icono de la bandeja. La ventana se oculta mientras se graba.
-- **Zoom a demanda** (1,5×, 2× o 2,5×): mientras grabas, `Ctrl+Alt+Z` acerca (centrado en el cursor, que el zoom sigue) y otra vez aleja, con transición suave; y **halo en el puntero**. Se aplican al terminar la grabación (se reescribe el vídeo: unos 0,8 s por segundo de grabación en 1080p). Solo en KDE Plasma, donde KWin entrega la posición del cursor; en otros escritorios las opciones aparecen desactivadas. Resaltar los clics y mostrar las teclas queda pendiente: necesita permiso de lectura de `/dev/input` (grupo `input`).
-- **Mezclador de audio**: el sistema y el micrófono se graban en pistas separadas y al guardar se mezclan con el volumen de cada fuente (0–200 %) y, si quieres, reducción de ruido del micrófono: *suave* (filtro de graves y resta del ruido de fondo, unos 7 dB menos de ruido) o *fuerte* (además una puerta de ruido que cierra el micrófono entre frases; puede cortar finales de palabra muy bajos). Medido con ruido rosa realista; la voz casi no cambia.
-- **Transmitir en directo** por RTMP a YouTube, TikTok, Twitch u otro servidor (panel «Transmitir en directo»): pegas la clave de transmisión de la plataforma (no hace falta iniciar sesión ni usar su API), eliges 480p, 720p o 1080p y se emite pantalla + burbuja de cámara + audio (sistema y micrófono con su volumen) con una copia local en MP4 por si se corta la conexión. La clave solo se guarda si marcas «Recordar» (archivo de configuración con permisos 0600) y nunca aparece en mensajes ni en el registro. **Si se cae la conexión, el directo se reconecta solo** (reintenta a 1, 2, 4, 8, 15 y 30 s) sin tocar la copia local, y la ventana muestra el estado («Sin conexión: reintento en 4 s», «Conectado (reconexiones: 2)»); si nunca llega a conectar (dirección o clave mal puestas) avisa a los 3 intentos. El envío va en una tubería aparte de la que graba, así un fallo de red nunca para la grabación. En directo no hay pausa ni zoom, y la reducción de ruido del micrófono en directo usa el cancelador de ruido de PipeWire (módulo echo-cancel con WebRTC): al transmitir con el micrófono y el ruido en «suave» o «fuerte» se crea un micrófono virtual «OweeCapture: micrófono sin ruido» que desaparece al terminar (medido con ruido rosa: ≈19 dB menos; «fuerte» añade además una puerta de ruido, de −56 a −91 dB entre frases). Necesita PipeWire con ese módulo; si no está, se transmite con el micrófono normal y se avisa. Cómo suena tu voz con el filtro solo se puede juzgar a oído: pruébalo antes de un directo importante. Medido en un portátil de 4 núcleos: 720p a 3000 kbps con mucho movimiento, 30 fps estables y ~1,6 núcleos. TikTok exige cumplir sus requisitos para transmitir desde un ordenador con clave.
-- **Clips de los últimos segundos** (`Ctrl+Alt+G`, 15, 30, 60 o 120 s): mientras grabas o transmites, guarda aparte lo último que pasó (en `Videos/Screen Recordings/Clips`) sin parar nada y sin gastar CPU extra, porque se corta de la copia que ya se está escribiendo. Empieza hasta 2 s antes de lo pedido (fotograma clave anterior). No funciona en pausa ni si no hay una grabación en curso.
-- **Herramientas de vídeo** (botón en la ventana o «Herramientas de vídeo…» en la bandeja; abre con tu última grabación): **recortar el principio y el final** (con miniaturas de los fotogramas de inicio y fin, corte exacto o rápido sin recodificar), **vertical 9:16** (1080×1920) para YouTube Shorts, TikTok y Reels, con el vídeo entero sobre un fondo desenfocado o recortado a vertical eligiendo qué parte queda; y **cortar silencios** (suave, normal o fuerte) para tutoriales. **Subtítulos automáticos y locales** (faster-whisper, modelo «base»): crean un archivo `.srt` junto al vídeo (sirve como subtítulos de YouTube) y, si quieres, los dibujan en el vídeo como en TikTok (blancos con contorno, abajo; el tamaño se adapta también al vertical). El audio nunca sale del equipo. El motor se descarga solo si lo aceptas (botón en las herramientas; **unos 620 MB**: librerías de PyPI ~470 MB y el modelo de Hugging Face ~145 MB) en `~/.local/share/oweecapture/` y se quita borrando `voz/` y `modelos/`; corre unas 12 veces más rápido que el tiempo real en un portátil de 4 núcleos. La calidad con voz real hay que juzgarla a oído. Se aplican tras recortar y cortar silencios y antes del vertical. Incluyen una **vista previa** del vídeo (reproducir, barra de posición, saltar a un instante): con el botón «Aquí» pones el inicio y el fin del recorte desde la posición actual, «▶ Ver el tramo» reproduce justo lo que quedaría y, con el recorte vertical, una guía 9:16 sobre la imagen muestra qué parte se queda. No necesita QtMultimedia: dibuja los fotogramas de GStreamer en la propia ventana. Se pueden combinar (recortar → silencios → vertical); siempre crean un archivo nuevo al lado del original, se pueden cancelar y no pisan nada. Medido: el vertical con fondo desenfocado tarda ~0,5 s por cada segundo de vídeo en un portátil de 4 núcleos. Revisa el límite de duración vigente de cada plataforma.
-- **Grabar o transmitir en vertical 9:16** (opción «Zona al grabar» → *Vertical 9:16*; en el selector, la tecla `V` alterna): un marco 9:16 sigue al ratón, la rueda cambia su tamaño y un clic lo fija. Mientras grabas o transmites, una línea amarilla rodea la zona **por fuera**, así sabes por dónde te sales y no sale en el vídeo (medido: con pantalla completa el marco aparece y con zona recortada no hay ni un píxel). Con zonas pegadas al borde de la pantalla esa línea queda fuera de la vista. **El marco se puede arrastrar mientras grabas o transmites** (agarra la línea o el asa amarilla «arrastra para mover»): la zona grabada se mueve con él sin parar nada, como la burbuja de cámara. Solo la línea y el asa reciben el ratón; el resto de la pantalla sigue recibiendo los clics. Con zoom o halo, el seguimiento del cursor tiene en cuenta cada movimiento de la zona.
-- **Clics y teclas en pantalla**: ondas de color en cada clic del ratón (izquierdo amarillo, derecho coral, central verde) y una pastilla con las teclas pulsadas, que salen en el vídeo y en el directo dentro de la zona grabada. Hace falta que tu usuario esté en el grupo `input` (`sudo usermod -aG input $USER` y volver a iniciar sesión), porque Wayland no deja leer el ratón ni el teclado de otro modo. **Privacidad:** solo se lee mientras grabas o transmites, no se guarda nada y por defecto solo se muestran atajos y teclas especiales (Ctrl+C, Intro, Esc…), no lo que escribes; la opción «todo lo que escribo» avisa del riesgo con las contraseñas. Los nombres de las teclas son por posición física (QWERTY).
-- Burbuja de cámara redonda y arrastrable, solo mientras se graba. `oweecapture --present` (`Ctrl+Alt+D`): **modo presentación** con una barra de iconos para dibujar sobre la pantalla: lápiz, resaltador, **flecha**, **marco** (rectángulo), elipse y **texto** (escribes y pulsas Intro), 6 colores, 3 grosores, deshacer, borrar y «pasar clics» (usas el escritorio sin salir; lo dibujado sigue visible). Teclas: 1–6 herramientas, Ctrl+Z, C, Espacio, Esc.
-  Efectos de la cámara (panel «Efectos de la cámara», en vivo): forma (círculo o cuadrado redondeado), color del borde, espejo, brillo, contraste y **recorte del fondo verde o azul** (solo se ve a la persona).
-- Una sola instancia: `oweecapture --quit` la cierra; `--segundo-plano` arranca solo con el icono de la bandeja y los atajos.
-- Pendiente: editor de capturas en Qt (el de GTK4 sigue en el repositorio pero no funciona en KDE), elegir una ventana, GNOME.
-
-## Dependencias (sistema)
-`python3-pyside6.qtwidgets`, `python3-pyside6.qtgui`, `python3-gi`, `python3-dbus`, `gstreamer1.0-pipewire`, `gstreamer1.0-plugins-ugly` (x264), `ffmpeg`, `pipewire`, `xdg-desktop-portal` con el módulo de su escritorio, `libnotify-bin`. En KDE hace falta instalar `data/oweecapture.desktop` en `~/.local/share/applications/`: el portal solo atiende a una aplicación con su archivo `.desktop`.
-
-## Ejecutar desde el código
-```bash
-PYTHONPATH=src python3 -m oweecapture.qtapp                      # ventana principal
-PYTHONPATH=src python3 -m oweecapture.qtapp --segundo-plano      # solo bandeja y atajos
-python3 -m unittest discover -s tests                              # pruebas sin interfaz
-```
-Para que el escritorio le dé identidad propia (necesaria para el portal) se lanza desde el menú de aplicaciones o con `systemd-run --user --scope --unit=app-oweecapture-1 ...`.
-
-## Licencia
-GPL-3.0-or-later (ver `LICENSE`). Autor: Hector Martinez.
-
-## Autor
-Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · GPL-3.0-or-later
-
-## Logo
-Una koi (la mascota de Owee) nada dentro de una lente circular y su ojo es el punto rojo de «grabar». El SVG y los PNG (16–512 px) se generan con `python3 tools/generar_logo.py` (la geometría está una sola vez en ese script). Para ver el icono en el menú y la bandeja, copia `data/oweecapture.desktop` a `~/.local/share/applications/` y los iconos de `data/icons/` a `~/.local/share/icons/hicolor/<tamaño>/apps/oweecapture.png`.
+Versión 0.1.x. **Probada de verdad en KDE Plasma 6 (Wayland)**, donde todo funciona. En **Deepin (X11)** funciona la captura de pantalla y la grabación; en **GNOME** aún no está probada. **Windows y Android no están soportados** (ver [docs/ESCRITORIOS.md](docs/ESCRITORIOS.md)).
