@@ -1,10 +1,10 @@
 """Una sola instancia: la primera que arranca ofrece el servicio D-Bus `org.oweecapture.App`; las siguientes (o una orden como `oweecapture --shot`) le envían la orden y terminan.
-Sirve también para asignar atajos a mano en cualquier escritorio: `oweecapture --shot`, `--record`, `--present`, `--quit`."""
+Sirve también para asignar atajos a mano en cualquier escritorio: `oweecapture --shot`, `--record`, `--present`, `--camera`, `--quit`."""
 import dbus, dbus.mainloop.glib, dbus.service
 from . import kwin
 
 NOMBRE = "org.oweecapture.App"; RUTA = "/org/oweecapture/App"
-ORDENES = {"--shot": "Captura", "--record": "Grabar", "--present": "Presentacion", "--quit": "Salir"}       # opción de la línea de órdenes → método
+ORDENES = {"--shot": "Captura", "--record": "Grabar", "--present": "Presentacion", "--camera": "Camara", "--quit": "Salir"}       # opción de la línea de órdenes → método
 
 class Servicio(dbus.service.Object):
     def __init__(self, ventana, nombre):
@@ -15,6 +15,8 @@ class Servicio(dbus.service.Object):
     def Grabar(self): self.v.alternar()
     @dbus.service.method(NOMBRE)
     def Presentacion(self): self.v.presentacion()
+    @dbus.service.method(NOMBRE)
+    def Camara(self): self.v.camara_tecla()
     @dbus.service.method(NOMBRE)
     def Mostrar(self): self.v.show(); self.v.raise_(); self.v.activateWindow()
     @dbus.service.method(NOMBRE)

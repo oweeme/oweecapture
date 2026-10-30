@@ -58,9 +58,9 @@ class Ventana(QWidget):
         self.estado = QLabel(""); self.estado.setWordWrap(True); self.directo_activo = None; self.zona_grabada = None; self.marco = None; principal = QHBoxLayout(); principal.addWidget(self.boton, 2); principal.addWidget(self.pausa, 1); lay.addLayout(principal); lay.addWidget(self.estado)
         otros = QHBoxLayout(); [otros.addWidget(w) for w in (self.cap, self.pres, self.herr, self.acerca)]; lay.addLayout(otros); self.resize(560, 640)
         self.reloj = QTimer(self); self.reloj.timeout.connect(self.tic)
-        kwin.mantener_encima([burbuja_titulo(), marco.TITULO, efectos_pantalla.TITULO, presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); self.selector = None
+        kwin.mantener_encima([burbuja_titulo(), marco.TITULO, efectos_pantalla.TITULO, presentacion.T_DIBUJO, presentacion.T_CONTROLES, selector.TITULO]); kwin.excluir_de_captura([presentacion.T_CONTROLES]); self.selector = None
         self.tray = bandeja(self)
-        self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Tu escritorio no ofrece atajos globales a las aplicaciones. Crea los tuyos en los ajustes de teclado, con estas órdenes: oweecapture --record · oweecapture --shot · oweecapture --present · oweecapture --quit. (Detalle: ") + m + ")"))
+        self.atajos = atajos.Atajos(); self.atajos.activado.connect(self.atajo); self.atajos.fallo.connect(lambda m: self.estado.setText(_("Tu escritorio no ofrece atajos globales a las aplicaciones. Crea los tuyos en los ajustes de teclado, con estas órdenes: oweecapture --record · oweecapture --shot · oweecapture --present · oweecapture --camera · oweecapture --quit. (Detalle: ") + m + ")"))
         if not os.environ.get("OWEECAPTURE_SIN_ATAJOS"): self.atajos.iniciar()          # las pruebas lo desactivan: registrar atajos desde un proceso de prueba los deja en el grupo equivocado de KDE
 
     def atajo(self, que):
@@ -70,6 +70,7 @@ class Ventana(QWidget):
         elif que == "zoom": self.zoom_tecla()
         elif que == "clip": self.clip_tecla()
         elif que == "presentacion": self.presentacion()
+        elif que == "camara": self.camara_tecla()
 
     def deslizador(self, clave, casilla):
         """Control de volumen de una fuente (0–200 %), activo solo si la fuente está marcada; el ajuste se aplica al guardar la grabación."""
@@ -193,6 +194,10 @@ class Ventana(QWidget):
     def camara_cambia(self):
         if self.burbuja: self.burbuja.aplicar(self.opciones_camara())
 
+    def camara_tecla(self):
+        """Quita o vuelve a poner la burbuja de la cámara mientras se graba (sin cambiar la opción guardada de usarla)."""
+        if self.grab.corriendo: self.cambiar_camara(not self.burbuja); self.acc["camara"].setText(_("Quitar la burbuja de la cámara") if self.burbuja else _("Poner la burbuja de la cámara"))
+
     def cambiar_camara(self, on):
         if on and not self.burbuja:
             ok, motivo = True, ""
@@ -289,7 +294,7 @@ class Ventana(QWidget):
         """El icono de la bandeja muestra el estado (rojo grabando, naranja en pausa) y su menú ofrece detener y pausar sin ventana."""
         g, p = self.grab.corriendo, self.grab.pausada
         self.tray.setIcon(icono_estado("pausa" if p else "zoom" if self.grab.zoom_activo() else "grabando") if g else icono()); self.tray.setToolTip(("OweeCapture — " + (_("En pausa") if p else _("Grabando con zoom") if self.grab.zoom_activo() else _("Grabando")) + " " + tiempo) if g else "OweeCapture")
-        self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["clip"].setVisible(g and not p); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
+        self.acc["grabar"].setText(_("Detener la grabación") if g else _("Grabar")); self.acc["pausa"].setVisible(g); self.acc["zoom"].setVisible(g and self.cfg["zoom"] > 1); self.acc["clip"].setVisible(g and not p); self.acc["camara"].setVisible(g); self.acc["camara"].setText(_("Quitar la burbuja de la cámara") if self.burbuja else _("Poner la burbuja de la cámara")); self.acc["pausa"].setText(_("Continuar") if p else _("Pausar"))
 
     def parar(self):
         self.cerrar_marco(); self.parar_entrada(); self.reloj.stop(); self.boton.setEnabled(False); self.pausa.setEnabled(False); self.estado.setText(_("Guardando…") + (" " + _("(aplicando zoom y halo: puede tardar)") if self.grab.efectos else "")); self.grab.detener(lambda ruta, err: self.puente.terminado.emit(ruta, err))
@@ -332,11 +337,11 @@ def bandeja(v):
     """Icono en la bandeja (StatusNotifier en KDE): captura, grabar o detener, pausar, abrir la ventana y salir, sin necesidad de ventana."""
     t = QSystemTrayIcon(icono(), v); m = QMenu(); v.acc = {}
     v.acc["captura"] = m.addAction(_("Captura de pantalla"), v.captura); v.acc["grabar"] = m.addAction(_("Grabar"), v.alternar)
-    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["zoom"] = m.addAction(_("Acercar / alejar (zoom)"), v.zoom_tecla); v.acc["zoom"].setVisible(False); v.acc["clip"] = m.addAction(_("Guardar clip de los últimos segundos"), v.clip_tecla); v.acc["clip"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
+    v.acc["pausa"] = m.addAction(_("Pausar"), v.pausar); v.acc["pausa"].setVisible(False); v.acc["zoom"] = m.addAction(_("Acercar / alejar (zoom)"), v.zoom_tecla); v.acc["zoom"].setVisible(False); v.acc["clip"] = m.addAction(_("Guardar clip de los últimos segundos"), v.clip_tecla); v.acc["clip"].setVisible(False); v.acc["camara"] = m.addAction(_("Quitar la burbuja de la cámara"), v.camara_tecla); v.acc["camara"].setVisible(False); v.acc["presentacion"] = m.addAction(_("Modo presentación"), v.presentacion)
     m.addAction(_("Herramientas de vídeo…"), v.herramientas); m.addAction(_("Acerca de"), v.acerca_de); m.addAction(_("Abrir ventana"), v.show); m.addSeparator(); m.addAction(_("Salir"), v.salir)
     t.setContextMenu(m); t.setToolTip("OweeCapture"); t.activated.connect(lambda r: (m.popup(QCursor.pos()) if v.grab.corriendo else v.show()) if r == QSystemTrayIcon.Trigger else None); t.show(); return t
 
-def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion}[orden]()
+def servicio_orden(v, orden): {"Captura": v.captura, "Grabar": v.alternar, "Presentacion": v.presentacion, "Camara": v.camara_tecla}[orden]()
 
 def _plataforma():
     """Deepin define QT_QPA_PLATFORM=dxcb, un complemento de Qt5 propio que PySide6 (Qt6) no tiene («Could not find the Qt platform plugin dxcb»): se sustituye por la plataforma normal."""

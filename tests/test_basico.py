@@ -372,6 +372,18 @@ class CapturaX11(unittest.TestCase):
         c = portal.Grabador.__new__(portal.Grabador); c.x11 = (0, 0, 1920, 1080)
         f = c._fuente_video(); self.assertIn("ximagesrc", f); self.assertIn("endx=1919", f); self.assertIn("endy=1079", f)
 
+class CamaraYBarra(unittest.TestCase):
+    def test_orden_y_atajo_de_la_camara(self):
+        from oweecapture import atajos, servicio
+        self.assertEqual(servicio.ORDENES["--camera"], "Camara"); self.assertTrue(hasattr(servicio.Servicio, "Camara"))
+        self.assertIn("camara", [a[0] for a in atajos.ATAJOS])
+
+    def test_script_de_exclusion_nombra_las_ventanas(self):
+        from oweecapture import kwin, presentacion
+        guardado, kwin.disponible = kwin.disponible, lambda: False
+        try: self.assertFalse(kwin.excluir_de_captura([presentacion.T_CONTROLES]))          # sin KWin no hace nada ni falla
+        finally: kwin.disponible = guardado
+
 class PaqueteDeb(unittest.TestCase):
     @unittest.skipUnless(shutil.which("dpkg-deb"), "sin dpkg-deb")
     def test_el_deb_trae_el_comando_el_lanzador_las_traducciones_y_ninguna_cache(self):

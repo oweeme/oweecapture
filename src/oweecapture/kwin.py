@@ -50,6 +50,18 @@ def mantener_encima(titulos):
     if ident < 0: return False
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _cargados.append(nombre); return True
 
+def excluir_de_captura(titulos):
+    """Marca las ventanas cuyo título esté en `titulos` como «excluir de la captura» (KWin 6.4 o posterior): se ven en tu pantalla pero no entran en las grabaciones ni en los directos. Devuelve True si KWin cargó el script."""
+    if not disponible(): return False
+    nombre = f"oweecapture-excluir-{os.getpid()}-{len(_cargados)}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
+    with open(ruta, "w") as f:
+        f.write(f"const titulos = {json.dumps(titulos)};\n"
+                "function excluir(w) { if (titulos.indexOf(w.caption) < 0) return; w.excludeFromCapture = true; print('oweecapture excluida de la captura: ' + w.caption + ' = ' + w.excludeFromCapture); }\n"
+                "workspace.windowList().forEach(excluir); workspace.windowAdded.connect(excluir);\n")
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = _entero(r)
+    if ident < 0: return False
+    _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _cargados.append(nombre); return True
+
 def descargar_todo():
     for nombre in _cargados: _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", nombre)
     _cargados.clear()

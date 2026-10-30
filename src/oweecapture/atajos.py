@@ -10,7 +10,8 @@ ATAJOS = [("grabar", "Grabar la pantalla (empezar / detener)", "CTRL+ALT+r", 0x0
           ("pausar", "Pausar o continuar la grabación", "CTRL+ALT+p", 0x04000000 | 0x08000000 | ord("P")),
           ("clip", "Guardar un clip de los últimos segundos", "CTRL+ALT+g", 0x04000000 | 0x08000000 | ord("G")),
           ("zoom", "Acercar o alejar (zoom) mientras se graba", "CTRL+ALT+z", 0x04000000 | 0x08000000 | ord("Z")),
-          ("presentacion", "Activar o desactivar el modo presentación", "CTRL+ALT+d", 0x04000000 | 0x08000000 | ord("D"))]
+          ("presentacion", "Activar o desactivar el modo presentación", "CTRL+ALT+d", 0x04000000 | 0x08000000 | ord("D")),
+          ("camara", "Quitar o poner la burbuja de la cámara mientras se graba", "CTRL+ALT+c", 0x04000000 | 0x08000000 | ord("C"))]
 
 class Atajos(QObject):
     activado = Signal(str); fallo = Signal(str)
