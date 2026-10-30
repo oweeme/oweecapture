@@ -233,10 +233,11 @@ class Ventana(QWidget):
         if self.zona_grabada: self.marco = marco.Marco(self.zona_grabada); self.marco.movida.connect(lambda r: self.grab.mover_zona(r.x(), r.y())); self.marco.mostrar()          # la línea queda fuera de la zona: no sale en el vídeo
         self.boton.setText(_("Detener")); self.boton.setEnabled(True); self.pausa.setEnabled(not self.directo_activo); self.b_directo.setText(_("Detener la transmisión") if self.directo_activo else self.b_directo.text()); self.b_directo.setEnabled(bool(self.directo_activo)); self.reloj.start(500)
         if self.camara.isChecked(): self.cambiar_camara(True)          # la burbuja vive solo mientras se graba
+        kwin.excluir_menus_del_panel(True)          # los menús de la bandeja no salen en el vídeo
         self.tic()
     def al_fallar(self, mensaje): self.fin_grabacion(); mensaje = self.sin_clave(mensaje); self.estado.setText(mensaje); self.mostrar()
     def fin_grabacion(self):
-        self.parar_entrada(); self.cerrar_marco(); self.reloj.stop(); self.cambiar_camara(False); self.directo_activo = None; self.b_directo.setText(_("Transmitir en directo")); self.b_directo.setEnabled(True); self.boton.setText(_("Grabar")); self.boton.setEnabled(True); self.pausa.setEnabled(False); self.pausa.setText(_("Pausar")); self.refrescar_bandeja()
+        kwin.excluir_menus_del_panel(False); self.parar_entrada(); self.cerrar_marco(); self.reloj.stop(); self.cambiar_camara(False); self.directo_activo = None; self.b_directo.setText(_("Transmitir en directo")); self.b_directo.setEnabled(True); self.boton.setText(_("Grabar")); self.boton.setEnabled(True); self.pausa.setEnabled(False); self.pausa.setText(_("Pausar")); self.refrescar_bandeja()
 
     def aviso_red(self):
         """En directo, avisa (globo de la bandeja) cuando la conexión se cae y cuando vuelve."""

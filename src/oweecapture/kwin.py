@@ -62,7 +62,26 @@ def excluir_de_captura(titulos):
     if ident < 0: return False
     _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _cargados.append(nombre); return True
 
+_menus = [None]
+
+def excluir_menus_del_panel(activar):
+    """Mientras se graba: los menús emergentes del panel de Plasma (el de la bandeja, p. ej.) no entran en el vídeo. Son ventanas de `plasmashell` sin título; los avisos y el propio panel no se tocan.
+    Al terminar la grabación se descarga el script. Devuelve True si KWin cargó el script (o lo descargó)."""
+    if not disponible(): return False
+    if not activar:
+        if _menus[0]: _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", _menus[0]); _menus[0] = None
+        return True
+    if _menus[0]: return True
+    nombre = f"oweecapture-menus-{os.getpid()}"; ruta = os.path.join(tempfile.gettempdir(), nombre + ".js")
+    with open(ruta, "w") as f:
+        f.write("function excluir(w) { if (String(w.resourceClass) !== 'plasmashell' || w.caption !== '') return; w.excludeFromCapture = true; print('oweecapture menu del panel excluido = ' + w.excludeFromCapture); }\n"
+                "workspace.windowList().forEach(excluir); workspace.windowAdded.connect(excluir);\n")
+    r = _kwin("/Scripting", "org.kde.kwin.Scripting").call("loadScript", ruta, nombre); ident = _entero(r)
+    if ident < 0: return False
+    _kwin(f"/Scripting/Script{ident}", "org.kde.kwin.Script").call("run"); _menus[0] = nombre; return True
+
 def descargar_todo():
+    excluir_menus_del_panel(False)
     for nombre in _cargados: _kwin("/Scripting", "org.kde.kwin.Scripting").call("unloadScript", nombre)
     _cargados.clear()
 
