@@ -1,3 +1,5 @@
+**Español** · [English](../en/GUIDE.md) · [Inicio](../../README.es.md)
+
 # Guía de uso
 
 Cada apartado responde a «quiero hacer X». Las rutas son las de una instalación normal; las carpetas se llaman según el idioma de tu sistema (aquí `Vídeos` e `Imágenes`).

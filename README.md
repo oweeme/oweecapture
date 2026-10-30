@@ -1,51 +1,55 @@
-<p align="center"><img src="data/icons/oweecapture-128.png" alt="Logo de OweeCapture: una koi dentro de una lente circular" width="128"></p>
+[Español](README.es.md) · **English**
+
+<p align="center"><img src="data/icons/oweecapture-128.png" alt="OweeCapture logo: a koi inside a round lens" width="128"></p>
 
 # OweeCapture
 
-Grabadora de pantalla, capturas, directos y herramientas de vídeo para Linux, pensada para quien hace **tutoriales y contenido** (YouTube, TikTok, Shorts, Reels, WhatsApp).
+Screen recorder, screenshots, live streaming and video tools for Linux, made for people who create **tutorials and content** (YouTube, TikTok, Shorts, Reels, WhatsApp).
 
-- **Graba** la pantalla, una zona o en vertical 9:16, con audio del sistema, micrófono y burbuja de cámara.
-- **Transmite en directo** por RTMP a YouTube, TikTok, Twitch u otro servidor, guardando una copia local.
-- **Ayuda a explicar**: zoom con una tecla, clips de los últimos segundos, modo presentación para dibujar sobre la pantalla, clics y teclas en pantalla.
-- **Termina el vídeo**: recortar, cortar silencios, pasar a vertical y subtítulos automáticos (todo en tu equipo, nada sale a internet).
+- **Records** the screen, a region, or vertical 9:16, with system audio, microphone and a camera bubble.
+- **Streams live** over RTMP to YouTube, TikTok, Twitch or any server, keeping a local copy.
+- **Helps you explain**: one-key zoom, clips of the last few seconds, presentation mode to draw on the screen, clicks and keys shown on screen.
+- **Finishes the video**: trim, cut silences, convert to vertical and automatic subtitles (all on your computer, nothing is sent to the internet).
 
-Autor: Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · Licencia GPL-3.0-or-later.
+Author: Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · License GPL-3.0-or-later.
 
-## Empezar en 3 pasos
+> **The application interface is currently in Spanish** (its translation catalogs cover only a few messages). In this documentation, button and option names are written as they appear on screen, followed by an English translation the first time. The documentation is available in English and Spanish.
 
-1. **Instala** (Debian, Ubuntu, Deepin, Mint): descarga el `.deb` de la [última versión](../../releases/latest) y ejecuta `sudo apt install ./oweecapture_<versión>_all.deb`.
-   Otras distribuciones (Fedora, Arch, openSUSE…): [docs/INSTALACION.md](docs/INSTALACION.md).
-2. **Ábrela** desde el menú de aplicaciones («OweeCapture») y comprueba con `oweecapture --version`.
-3. **Graba**: pulsa *Grabar*, elige la zona y listo. Se guarda en `Vídeos/Screen Recordings`.
+## Get started in 3 steps
 
-Para que los atajos respondan desde que arranca el escritorio, activa «Iniciar OweeCapture al abrir la sesión» en la pestaña *Grabar*.
+1. **Install** (Debian, Ubuntu, Deepin, Mint): download the `.deb` from the [latest release](../../releases/latest) and run `sudo apt install ./oweecapture_<version>_all.deb`.
+   Other distributions (Fedora, Arch, openSUSE…): [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md).
+2. **Open it** from the applications menu ("OweeCapture") and check with `oweecapture --version`.
+3. **Record**: press *Grabar* (Record), pick the region, done. Videos are saved in `Videos/Screen Recordings`.
 
-## Atajos
+To make the shortcuts work from the moment the desktop starts, enable "Iniciar OweeCapture al abrir la sesión" (start with the session) in the *Grabar* tab.
 
-| Atajo | Orden (para escritorios sin atajos globales) | Qué hace |
+## Shortcuts
+
+| Shortcut | Command (for desktops without global shortcuts) | What it does |
 |---|---|---|
-| `Ctrl+Alt+R` | `oweecapture --record` | Empezar / detener la grabación |
-| `Ctrl+Alt+S` | `oweecapture --shot` | Captura de pantalla |
-| `Ctrl+Alt+P` | — | Pausar / continuar |
-| `Ctrl+Alt+Z` | — | Acercar / alejar (zoom) mientras grabas |
-| `Ctrl+Alt+G` | — | Guardar un clip de los últimos segundos |
-| `Ctrl+Alt+D` | `oweecapture --present` | Modo presentación (dibujar en pantalla) |
-| `Ctrl+Alt+C` | `oweecapture --camera` | Quitar / poner la burbuja de la cámara mientras grabas |
-| — | `oweecapture --quit` | Cerrar el programa |
+| `Ctrl+Alt+R` | `oweecapture --record` | Start / stop recording |
+| `Ctrl+Alt+S` | `oweecapture --shot` | Screenshot |
+| `Ctrl+Alt+P` | — | Pause / resume |
+| `Ctrl+Alt+Z` | — | Zoom in / out while recording |
+| `Ctrl+Alt+G` | — | Save a clip of the last few seconds |
+| `Ctrl+Alt+D` | `oweecapture --present` | Presentation mode (draw on screen) |
+| `Ctrl+Alt+C` | `oweecapture --camera` | Hide / show the camera bubble while recording |
+| — | `oweecapture --quit` | Quit the program |
 
-## Documentación
+## Documentation
 
-| Quiero… | Lee |
+| I want to… | Read |
 |---|---|
-| Aprender a usarla, tarea por tarea | [docs/GUIA.md](docs/GUIA.md) |
-| Instalar, actualizar o desinstalar | [docs/INSTALACION.md](docs/INSTALACION.md) |
-| Arreglar un problema (no graba, no abre, sin atajos…) | [docs/PROBLEMAS.md](docs/PROBLEMAS.md) |
-| Ver qué funciona en cada escritorio | [docs/ESCRITORIOS.md](docs/ESCRITORIOS.md) |
-| Ver qué cambió en cada versión | [CHANGELOG.md](CHANGELOG.md) |
-| Programar, probar y publicar versiones | [docs/DESARROLLO.md](docs/DESARROLLO.md) |
+| Learn to use it, task by task | [docs/en/GUIDE.md](docs/en/GUIDE.md) |
+| Install, update or uninstall | [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md) |
+| Fix a problem (won't record, won't open, no shortcuts…) | [docs/en/TROUBLESHOOTING.md](docs/en/TROUBLESHOOTING.md) |
+| See what works on each desktop | [docs/en/DESKTOPS.md](docs/en/DESKTOPS.md) |
+| See what changed in each version | [CHANGELOG.md](CHANGELOG.md) |
+| Develop, test and release versions | [docs/en/DEVELOPMENT.md](docs/en/DEVELOPMENT.md) |
 
-Otros documentos del proyecto: [PLAN.md](PLAN.md) (hoja de ruta) y [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md) (por qué Python y Qt).
+Other project documents (Spanish only): [PLAN.md](PLAN.md) (roadmap) and [docs/DECISION-LENGUAJE.md](docs/DECISION-LENGUAJE.md) (why Python and Qt).
 
-## Estado
+## Status
 
-Versión 0.1.x. **Probada de verdad en KDE Plasma 6 (Wayland)**, donde todo funciona. En **Deepin (X11)** funciona la captura de pantalla y la grabación; en **GNOME** aún no está probada. **Windows y Android no están soportados** (ver [docs/ESCRITORIOS.md](docs/ESCRITORIOS.md)).
+Version 0.1.x. **Really tested on KDE Plasma 6 (Wayland)**, where everything works. On **Deepin (X11)** screenshots and recording work; **GNOME** is untested. **Windows and Android are not supported** (see [docs/en/DESKTOPS.md](docs/en/DESKTOPS.md)).

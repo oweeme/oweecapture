@@ -1,3 +1,5 @@
+**Español** · [English](../en/TROUBLESHOOTING.md) · [Inicio](../../README.es.md)
+
 # Solución de problemas
 
 **Primero, dos comprobaciones que resuelven la mayoría de los casos:**

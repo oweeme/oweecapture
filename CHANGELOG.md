@@ -1,35 +1,37 @@
-# Cambios por versión
+[Español](CHANGELOG.es.md) · **English**
+
+# Changelog
 
 ## 0.1.9
-- Los menús desplegables del icono de la bandeja ya no salen en la grabación (KDE).
+- The pop-up menus of the tray icon no longer appear in the recording (KDE).
 
 ## 0.1.8
-- Burbuja de la cámara: se puede **quitar y volver a poner mientras grabas** (icono de la bandeja, `Ctrl+Alt+C` o `oweecapture --camera`).
-- La **barra del modo presentación no sale en el vídeo**: se ve en tu pantalla, pero se excluye de la grabación y del directo (KDE con KWin 6.4 o posterior).
+- Camera bubble: it can be **hidden and shown again while recording** (tray icon, `Ctrl+Alt+C` or `oweecapture --camera`).
+- The **presentation-mode toolbar does not appear in the video**: you see it on your screen, but it is excluded from recordings and streams (KDE with KWin 6.4 or later).
 
 ## 0.1.7
-- Al pulsar Detener, el marco amarillo y los resaltados desaparecen al instante (antes esperaban a que terminara de guardar).
-- La reducción de calidad en segundo plano es más rápida.
+- When you press Stop, the yellow frame and the highlights disappear immediately (before, they waited until saving finished).
+- The background quality reduction is faster.
 
 ## 0.1.6
-- **Grabar en sesiones X11** (Deepin): captura directa de pantalla sin portal. Antes la grabación se cortaba al instante con «El portal de pantalla falló».
+- **Recording on X11 sessions** (Deepin): direct screen capture without a portal. Before, recording stopped instantly with "El portal de pantalla falló" (the screen portal failed).
 
 ## 0.1.5
-- **Actualizar ya no deja el programa sin archivos** (fallo visto en Deepin): el código vive en `/usr/lib/oweecapture` y el `postrm` solo borra al quitar o purgar el paquete.
+- **Updating no longer leaves the program without files** (bug seen on Deepin): the code lives in `/usr/lib/oweecapture` and `postrm` only deletes things on remove or purge.
 
 ## 0.1.4
-- El entorno propio con PySide6 ve siempre el paquete: Python del sistema, `.pth` y lanzador a prueba de fallos.
-- Se retira el entorno propio viejo cuando el sistema ya trae PySide6.
+- The private environment with PySide6 always sees the package: system Python, `.pth` file and a failure-proof launcher.
+- The old private environment is removed when the system already provides PySide6.
 
 ## 0.1.3
-- La aplicación abre aunque el portal y KWin estén incompletos (Deepin): antes fallaba al arrancar.
+- The application opens even if the portal and KWin are incomplete (Deepin): before, it failed at startup.
 
 ## 0.1.2
-- Qt abre ventanas en X11: bibliotecas xcb obligatorias, registro de arranque (`arranque.log`) y prueba con pantalla virtual.
+- Qt opens windows on X11: xcb libraries are now required, startup log (`arranque.log`) and a test with a virtual screen.
 
 ## 0.1.1
-- **Instalador universal**: `.deb` que trae su PySide6 si el sistema no lo tiene, `install.sh` para Fedora, Arch y openSUSE, y pruebas de instalación en cada distribución.
-- Arreglada la descripción del `.deb` y quitada la dependencia de QtDBus, que rompía la instalación en Deepin.
+- **Universal installer**: a `.deb` that brings its own PySide6 if the system has none, `install.sh` for Fedora, Arch and openSUSE, and installation tests on each distribution.
+- Fixed the `.deb` description and removed the QtDBus dependency, which broke installation on Deepin.
 
 ## 0.1.0
-- Primera versión pública con el nombre **OweeCapture**, con paquete `.deb` y pruebas automáticas en GitHub Actions: grabación por portal + PipeWire, capturas, zoom a demanda y halo, mezclador de audio y reducción de ruido, directo RTMP con reconexión, clips, herramientas de vídeo (recortar, vertical, silencios), subtítulos locales, grabación vertical con marco arrastrable, clics y teclas en pantalla, modo presentación, burbuja de cámara con efectos, inicio con el escritorio.
+- First public version under the name **OweeCapture**, with a `.deb` package and automated tests on GitHub Actions: recording through portal + PipeWire, screenshots, on-demand zoom and cursor halo, audio mixer and noise reduction, RTMP streaming with reconnection, clips, video tools (trim, vertical, silences), local subtitles, vertical recording with a draggable frame, clicks and keys on screen, presentation mode, camera bubble with effects, start with the desktop.

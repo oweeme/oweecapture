@@ -1,3 +1,5 @@
+**Español** · [English](../en/INSTALLATION.md) · [Inicio](../../README.es.md)
+
 # Instalación, actualización y desinstalación
 
 Ambas vías se **prueban en cada versión** en contenedores limpios de GitHub Actions: se instala de verdad y se ejecuta `oweecapture --comprobar`. Solo Linux.
@@ -6,7 +8,7 @@ Ambas vías se **prueban en cada versión** en contenedores limpios de GitHub Ac
 
 Probado en Debian 12 y 13 y en Ubuntu 24.04 y 25.10.
 
-1. Descarga `oweecapture_<versión>_all.deb` de la [última versión](../../../releases/latest). Junto a él hay un archivo `SHA256SUMS` por si quieres verificarlo: `sha256sum -c SHA256SUMS`.
+1. Descarga `oweecapture_<versión>_all.deb` de la [última versión](../../../../releases/latest). Junto a él hay un archivo `SHA256SUMS` por si quieres verificarlo: `sha256sum -c SHA256SUMS`.
 2. Instálalo:
    ```bash
    sudo apt install ./oweecapture_<versión>_all.deb

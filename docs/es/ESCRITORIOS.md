@@ -1,3 +1,5 @@
+**Español** · [English](../en/DESKTOPS.md) · [Inicio](../../README.es.md)
+
 # Qué funciona en cada escritorio
 
 Estado real, probado o no. «Sin probar» significa que el código existe pero nadie lo ha usado en ese escritorio.

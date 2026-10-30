@@ -1,3 +1,5 @@
+**Español** · [English](../en/DEVELOPMENT.md) · [Inicio](../../README.es.md)
+
 # Desarrollo
 
 ## Ejecutar desde el código
@@ -62,7 +64,7 @@ La versión sale de `src/oweecapture/__init__.py`. El script rechaza una versió
 ## Publicar una versión
 
 1. Sube el número en **dos** sitios: `src/oweecapture/__init__.py` (`__version__`) y `src/oweecapture/autor.py` (`VERSION`).
-2. Añade la entrada al [CHANGELOG.md](../CHANGELOG.md).
+2. Añade la entrada al [CHANGELOG.es.md](../../CHANGELOG.es.md).
 3. Pruebas en verde, `git commit`, `git push origin main`.
 4. Etiqueta y sube: `git tag -a vX.Y.Z -m "OweeCapture X.Y.Z" && git push origin vX.Y.Z`.
 5. El flujo **Lanzamiento** (`.github/workflows/lanzamiento.yml`) pasa las pruebas, construye el `.deb` y el código fuente, prueba la instalación en varias distribuciones y publica la release con `SHA256SUMS`.
