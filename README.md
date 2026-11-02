@@ -13,6 +13,8 @@ Screen recorder, screenshots, live streaming and video tools for Linux, made for
 
 Author: Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · License GPL-3.0-or-later.
 
+**Project page and downloads:** https://oweeme.github.io/oweecapture/
+
 > **The application interface is currently in Spanish** (its translation catalogs cover only a few messages). In this documentation, button and option names are written as they appear on screen, followed by an English translation the first time. The documentation is available in English and Spanish.
 
 ## Get started in 3 steps

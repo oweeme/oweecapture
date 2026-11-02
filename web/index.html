@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OweeCapture - grabadora de pantalla para Linux</title>
+<meta name="description" content="OweeCapture: capturas con anotaciones, grabación de pantalla, directos y herramientas de vídeo para Linux y KDE Plasma. Gratis y libre (GPL-3.0). / Screen recorder, screenshots and video tools for Linux.">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<style>
+:root {
+  --fondo: #0f2a22; --fondo-2: #14362c; --tarjeta: #19412f; --borde: #2b5a47;
+  --texto: #eef6f2; --suave: #b6cdc3; --acento: #ff6b4a; --acento-2: #ffd470; --verde: #2a9d8f;
+  --codigo: #0a1c16;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+a { color: var(--acento-2); }
+a:hover { color: #fff; }
+.contenedor { width: min(1060px, 100% - 32px); margin-inline: auto; }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 .5em; }
+h2 { font-size: clamp(1.5rem, 3.2vw, 2rem); }
+section { padding: 56px 0; }
+section + section { border-top: 1px solid var(--borde); }
+.lead { color: var(--suave); max-width: 46rem; }
+
+/* barra superior */
+.barra { position: sticky; top: 0; z-index: 10; background: rgba(15, 42, 34, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--borde); }
+.barra .contenedor { display: flex; align-items: center; gap: 16px; min-height: 56px; }
+.marca { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--texto); text-decoration: none; }
+.marca img { width: 32px; height: 32px; }
+.barra nav { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+.barra nav a { color: var(--suave); text-decoration: none; font-size: .95rem; }
+.barra nav a:hover { color: #fff; }
+.idioma { background: transparent; color: var(--texto); border: 1px solid var(--borde); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+.idioma:hover { border-color: var(--acento-2); }
+
+/* portada */
+.portada { position: relative; padding: 72px 0 88px; background: linear-gradient(180deg, rgba(15, 42, 34, .55), var(--fondo) 96%), url("img/koi.webp") center / cover no-repeat; border-bottom: 1px solid var(--borde); }
+.portada .contenedor { display: grid; gap: 28px; }
+.portada img.logo { width: 112px; height: 112px; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .35)); }
+.portada h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); margin: 0; }
+.portada p.lema { font-size: clamp(1.1rem, 2.4vw, 1.4rem); color: var(--texto); max-width: 40rem; margin: 0; text-shadow: 0 1px 12px rgba(0, 0, 0, .5); }
+.botones { display: flex; flex-wrap: wrap; gap: 12px; }
+.boton { display: inline-block; padding: 12px 22px; border-radius: 12px; font-weight: 600; text-decoration: none; border: 2px solid transparent; }
+.boton.principal { background: var(--acento); color: #1a0b07; }
+.boton.principal:hover { background: #ff866b; color: #1a0b07; }
+.boton.secundario { background: rgba(15, 42, 34, .6); border-color: var(--acento-2); color: var(--texto); }
+.boton.secundario:hover { background: rgba(15, 42, 34, .9); }
+.nota { color: var(--suave); font-size: .92rem; margin: 0; }
+
+/* tarjetas */
+.rejilla { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 24px; }
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 16px; padding: 20px; }
+.tarjeta h3 { font-size: 1.1rem; color: var(--acento-2); }
+.tarjeta ul { margin: 0; padding-left: 1.1em; color: var(--suave); }
+.tarjeta li { margin: .25em 0; }
+
+/* instalación */
+.pasos { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 24px; }
+.caja { background: var(--fondo-2); border: 1px solid var(--borde); border-radius: 16px; padding: 22px; }
+.caja h3 { font-size: 1.15rem; }
+.caja .para { color: var(--suave); font-size: .93rem; margin: 0 0 12px; }
+pre { margin: 12px 0; background: var(--codigo); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; overflow-x: auto; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #dff5ea; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; }
+.hash { word-break: break-all; font-size: .82rem; color: var(--suave); }
+.aviso { background: rgba(255, 212, 112, .08); border: 1px solid rgba(255, 212, 112, .4); border-radius: 12px; padding: 14px 18px; margin-top: 24px; color: var(--texto); }
+
+/* tabla de escritorios */
+.tabla { overflow-x: auto; margin-top: 20px; border: 1px solid var(--borde); border-radius: 14px; }
+table { width: 100%; border-collapse: collapse; min-width: 560px; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--borde); }
+th { background: var(--fondo-2); color: var(--acento-2); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.si { color: #7ee2a8; font-weight: 600; } .parcial { color: var(--acento-2); font-weight: 600; } .no { color: #ff9b8a; font-weight: 600; }
+
+footer { border-top: 1px solid var(--borde); padding: 32px 0 48px; color: var(--suave); font-size: .93rem; }
+footer .contenedor { display: grid; gap: 8px; }
+
+/* idioma: por defecto se ve el español; el botón o el navegador activan el inglés */
+[data-en] { display: none; }
+html.en [data-es] { display: none; }
+html.en [data-en] { display: revert; }
+
+@media (max-width: 640px) {
+  .barra nav a.opcional { display: none; }
+  section { padding: 40px 0; }
+  .portada { padding: 48px 0 64px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="contenedor">
+    <a class="marca" href="#"><img src="img/oweecapture.svg" alt="" width="32" height="32"> OweeCapture</a>
+    <nav>
+      <a class="opcional" href="#funciones"><span data-es>Funciones</span><span data-en>Features</span></a>
+      <a class="opcional" href="#instalar"><span data-es>Instalar</span><span data-en>Install</span></a>
+      <a class="opcional" href="#escritorios"><span data-es>Escritorios</span><span data-en>Desktops</span></a>
+      <button class="idioma" id="idioma" type="button" aria-label="Cambiar idioma / Change language">EN</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="portada">
+  <div class="contenedor">
+    <img class="logo" src="img/oweecapture-128.png" alt="Logo de OweeCapture: una koi dentro de una lente circular / OweeCapture logo: a koi inside a round lens" width="112" height="112">
+    <h1>OweeCapture</h1>
+    <p class="lema">
+      <span data-es>Graba la pantalla, haz capturas, transmite en directo y termina tus vídeos. Hecha para quien enseña y crea contenido en Linux.</span>
+      <span data-en>Record the screen, take screenshots, stream live and finish your videos. Made for people who teach and create content on Linux.</span>
+    </p>
+    <div class="botones">
+      <a class="boton principal" href="https://github.com/oweeme/oweecapture/releases/download/v@VERSION@/oweecapture_@VERSION@_all.deb">
+        <span data-es>Descargar .deb · versión @VERSION@</span><span data-en>Download .deb · version @VERSION@</span>
+      </a>
+      <a class="boton secundario" href="#instalar"><span data-es>Otras formas de instalar</span><span data-en>Other ways to install</span></a>
+      <a class="boton secundario" href="https://github.com/oweeme/oweecapture">GitHub</a>
+    </div>
+    <p class="nota">
+      <span data-es>Gratis y libre (GPL-3.0). Sin telemetría: no envía nada a internet. Probada en KDE Plasma 6.</span>
+      <span data-en>Free and open source (GPL-3.0). No telemetry: nothing is sent to the internet. Tested on KDE Plasma 6.</span>
+    </p>
+  </div>
+</section>
+
+<section id="funciones">
+  <div class="contenedor">
+    <h2><span data-es>Todo lo que necesitas para un tutorial</span><span data-en>Everything you need for a tutorial</span></h2>
+    <p class="lead">
+      <span data-es>Una sola aplicación que graba, explica y termina el vídeo. Ligera para equipos modestos y con la interfaz en español.</span>
+      <span data-en>One application that records, explains and finishes the video. Light enough for modest computers. The interface is currently in Spanish.</span>
+    </p>
+    <div class="rejilla">
+      <article class="tarjeta">
+        <h3><span data-es>Graba</span><span data-en>Record</span></h3>
+        <ul data-es>
+          <li>Pantalla completa, una zona o vertical 9:16 (TikTok, Shorts, Reels)</li>
+          <li>Audio del sistema y micrófono, con reducción de ruido</li>
+          <li>Burbuja de cámara que puedes quitar y poner mientras grabas</li>
+          <li>Pausa, y recuperación de lo grabado si algo falla</li>
+        </ul>
+        <ul data-en>
+          <li>Full screen, a region or vertical 9:16 (TikTok, Shorts, Reels)</li>
+          <li>System audio and microphone, with noise reduction</li>
+          <li>Camera bubble you can remove and bring back while recording</li>
+          <li>Pause, and recovery of what was recorded if something fails</li>
+        </ul>
+      </article>
+      <article class="tarjeta">
+        <h3><span data-es>Explica</span><span data-en>Explain</span></h3>
+        <ul data-es>
+          <li>Modo presentación: dibuja sobre la pantalla con lápiz, flechas y marcos</li>
+          <li>Zoom con una tecla y halo en el cursor</li>
+          <li>Clics y teclas en pantalla</li>
+          <li>Clips de los últimos segundos</li>
+        </ul>
+        <ul data-en>
+          <li>Presentation mode: draw on the screen with pen, arrows and frames</li>
+          <li>One-key zoom and a halo around the cursor</li>
+          <li>Clicks and keys shown on screen</li>
+          <li>Clips of the last few seconds</li>
+        </ul>
+      </article>
+      <article class="tarjeta">
+        <h3><span data-es>Capturas con anotaciones</span><span data-en>Annotated screenshots</span></h3>
+        <ul data-es>
+          <li>Elige la zona y dibuja encima antes de guardar</li>
+          <li><strong>Ocultar datos:</strong> pixela claves y correos para que no se vean</li>
+          <li>Se guarda y se copia al portapapeles al aceptar</li>
+        </ul>
+        <ul data-en>
+          <li>Pick the area and draw on it before saving</li>
+          <li><strong>Hide data:</strong> pixelate passwords and emails so they cannot be read</li>
+          <li>Saved and copied to the clipboard when you accept</li>
+        </ul>
+      </article>
+      <article class="tarjeta">
+        <h3><span data-es>Transmite y termina</span><span data-en>Stream and finish</span></h3>
+        <ul data-es>
+          <li>Directo por RTMP a YouTube, TikTok o Twitch, con copia local</li>
+          <li>Recortar, cortar silencios y pasar a vertical</li>
+          <li>Subtítulos automáticos, todo en tu equipo</li>
+          <li>Calidad «Listo al parar»: el archivo sale en 720p, listo para WhatsApp</li>
+        </ul>
+        <ul data-en>
+          <li>RTMP live streaming to YouTube, TikTok or Twitch, with a local copy</li>
+          <li>Trim, cut silences and convert to vertical</li>
+          <li>Automatic subtitles, all on your computer</li>
+          <li>"Listo al parar" quality: the file is ready in 720p, ready for WhatsApp</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="instalar">
+  <div class="contenedor">
+    <h2><span data-es>Instalar y actualizar</span><span data-en>Install and update</span></h2>
+    <p class="lead">
+      <span data-es>Elige según tu distribución. En todas se comprueba con <code>oweecapture --version</code>.</span>
+      <span data-en>Pick the one for your distribution. In all of them you can check with <code>oweecapture --version</code>.</span>
+    </p>
+    <div class="pasos">
+      <div class="caja">
+        <h3><span data-es>Debian, Ubuntu, Kubuntu, KDE neon, Mint, Deepin</span><span data-en>Debian, Ubuntu, Kubuntu, KDE neon, Mint, Deepin</span></h3>
+        <p class="para"><span data-es>La opción más fácil: descarga el .deb e instálalo. Desde ese momento las versiones nuevas llegan con <code>apt upgrade</code>.</span><span data-en>The easiest option: download the .deb and install it. From then on new versions arrive with <code>apt upgrade</code>.</span></p>
+        <pre>sudo apt install ./oweecapture_@VERSION@_all.deb</pre>
+        <p class="para"><span data-es>O añade el repositorio (firmado) y se instala y actualiza como cualquier otro programa:</span><span data-en>Or add the (signed) repository and it installs and updates like any other program:</span></p>
+        <pre>sudo install -d /usr/share/keyrings
+curl -fsSL https://oweeme.github.io/oweecapture/oweecapture.gpg | sudo tee /usr/share/keyrings/oweecapture-archive-keyring.gpg &gt;/dev/null
+echo "deb [signed-by=/usr/share/keyrings/oweecapture-archive-keyring.gpg] https://oweeme.github.io/oweecapture stable main" | sudo tee /etc/apt/sources.list.d/oweecapture.list
+sudo apt update &amp;&amp; sudo apt install oweecapture</pre>
+        <p class="para"><span data-es>Actualizar más adelante:</span><span data-en>To update later:</span></p>
+        <pre>sudo apt update &amp;&amp; sudo apt upgrade</pre>
+      </div>
+      <div class="caja">
+        <h3><span data-es>Fedora, Arch, openSUSE y otras</span><span data-en>Fedora, Arch, openSUSE and others</span></h3>
+        <p class="para"><span data-es>Descarga el código fuente y ejecuta el instalador. Se instala en tu carpeta personal y pide confirmación antes de usar <code>sudo</code>.</span><span data-en>Download the source and run the installer. It installs in your home folder and asks before using <code>sudo</code>.</span></p>
+        <pre>tar xzf oweecapture-@VERSION@-fuente.tar.gz
+cd oweecapture-@VERSION@
+./install.sh --dependencias</pre>
+        <p class="para"><a href="https://github.com/oweeme/oweecapture/releases/download/v@VERSION@/oweecapture-@VERSION@-fuente.tar.gz"><span data-es>Descargar el código fuente</span><span data-en>Download the source code</span></a>
+          · <span data-es>Fedora necesita RPM Fusion para H.264 y AAC. Para actualizar, descarga la versión nueva y vuelve a ejecutar <code>./install.sh</code>.</span><span data-en>Fedora needs RPM Fusion for H.264 and AAC. To update, download the new version and run <code>./install.sh</code> again.</span></p>
+      </div>
+    </div>
+    <div class="aviso">
+      <strong><span data-es>Comprueba la descarga:</span><span data-en>Check the download:</span></strong>
+      <span data-es>suma SHA-256 del .deb de la versión @VERSION@</span><span data-en>SHA-256 sum of the .deb for version @VERSION@</span>
+      <div class="hash"><code>@SHA256@</code></div>
+      <span data-es>con <code>sha256sum oweecapture_@VERSION@_all.deb</code>.</span><span data-en>with <code>sha256sum oweecapture_@VERSION@_all.deb</code>.</span>
+    </div>
+    <p class="nota" style="margin-top:16px">
+      <a href="https://github.com/oweeme/oweecapture/blob/main/docs/es/INSTALACION.md"><span data-es>Guía de instalación completa</span><span data-en>Full installation guide</span></a> ·
+      <a href="https://github.com/oweeme/oweecapture/blob/main/docs/es/PROBLEMAS.md"><span data-es>Solución de problemas</span><span data-en>Troubleshooting</span></a> ·
+      <a href="https://github.com/oweeme/oweecapture/blob/main/CHANGELOG.es.md"><span data-es>Qué cambió en cada versión</span><span data-en>What changed in each version</span></a>
+    </p>
+  </div>
+</section>
+
+<section id="escritorios">
+  <div class="contenedor">
+    <h2><span data-es>Qué funciona en cada escritorio</span><span data-en>What works on each desktop</span></h2>
+    <p class="lead"><span data-es>Estado real: solo se marca «probado» lo que se ha usado de verdad.</span><span data-en>Real status: only what has actually been used is marked as tested.</span></p>
+    <div class="tabla">
+      <table>
+        <thead><tr><th><span data-es>Escritorio</span><span data-en>Desktop</span></th><th><span data-es>Estado</span><span data-en>Status</span></th></tr></thead>
+        <tbody>
+          <tr><td>KDE Plasma 6 (Wayland)</td><td class="si"><span data-es>Probado: todo funciona</span><span data-en>Tested: everything works</span></td></tr>
+          <tr><td>Deepin (X11)</td><td class="parcial"><span data-es>Funcionan la captura y la grabación; el resto, sin probar</span><span data-en>Screenshots and recording work; the rest is untested</span></td></tr>
+          <tr><td>GNOME</td><td class="parcial"><span data-es>Sin probar todavía</span><span data-en>Not tested yet</span></td></tr>
+          <tr><td>Windows, Android</td><td class="no"><span data-es>No soportado</span><span data-en>Not supported</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota" style="margin-top:14px"><span data-es>Los atajos globales, el zoom automático y ocultar la barra de dibujo en la grabación dependen de KWin (KDE). <a href="https://github.com/oweeme/oweecapture/blob/main/docs/es/ESCRITORIOS.md">Ver el detalle por función</a>.</span><span data-en>Global shortcuts, automatic zoom and hiding the drawing bar from the recording depend on KWin (KDE). <a href="https://github.com/oweeme/oweecapture/blob/main/docs/en/DESKTOPS.md">See the detail per feature</a>.</span></p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="contenedor">
+    <div>OweeCapture @VERSION@ · <span data-es>Licencia GPL-3.0-or-later</span><span data-en>License GPL-3.0-or-later</span></div>
+    <div><span data-es>Autor:</span><span data-en>Author:</span> Hector Martinez · <a href="mailto:hector@oweeme.com">hector@oweeme.com</a> · <a href="https://oweeme.com">oweeme.com</a></div>
+    <div><a href="https://github.com/oweeme/oweecapture">GitHub</a> · <a href="https://github.com/oweeme/oweecapture/issues"><span data-es>Reportar un problema</span><span data-en>Report a problem</span></a> · <a href="https://github.com/oweeme/oweecapture/releases"><span data-es>Todas las versiones</span><span data-en>All versions</span></a></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var raiz = document.documentElement, boton = document.getElementById("idioma");
+  function poner(en) { raiz.classList.toggle("en", en); raiz.lang = en ? "en" : "es"; boton.textContent = en ? "ES" : "EN"; }
+  var guardado = null; try { guardado = localStorage.getItem("idioma"); } catch (e) {}
+  poner(guardado ? guardado === "en" : !/^es/i.test(navigator.language || "es"));
+  boton.addEventListener("click", function () { var en = !raiz.classList.contains("en"); poner(en); try { localStorage.setItem("idioma", en ? "en" : "es"); } catch (e) {} });
+})();
+</script>
+</body>
+</html>

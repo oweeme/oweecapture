@@ -13,6 +13,8 @@ Grabadora de pantalla, capturas, directos y herramientas de vídeo para Linux, p
 
 Autor: Hector Martinez · [hector@oweeme.com](mailto:hector@oweeme.com) · https://oweeme.com · Licencia GPL-3.0-or-later.
 
+**Página del proyecto y descargas:** https://oweeme.github.io/oweecapture/
+
 ## Empezar en 3 pasos
 
 1. **Instala** (Debian, Ubuntu, Deepin, Mint): descarga el `.deb` de la [última versión](../../releases/latest) y ejecuta `sudo apt install ./oweecapture_<versión>_all.deb`.

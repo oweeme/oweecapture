@@ -266,6 +266,15 @@ class ListoAlParar(unittest.TestCase):
             t = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", ruta], capture_output=True, text=True).stdout.strip(); self.assertEqual(t, "1280,720")
 
 class Version(unittest.TestCase):
+    def test_la_pagina_del_proyecto_usa_archivos_que_existen_y_sus_marcadores_se_rellenan(self):
+        import re
+        raiz = os.path.join(os.path.dirname(__file__), ".."); web = os.path.join(raiz, "web"); html = open(os.path.join(web, "index.html"), encoding="utf-8").read()
+        refs = set(re.findall(r'(?:src|href)="(img/[^"]+)"', html)) | set(re.findall(r'url\("(img/[^"]+)"\)', html)); self.assertGreaterEqual(len(refs), 3)
+        for ref in refs: self.assertTrue(os.path.exists(os.path.join(web, ref)), ref)
+        self.assertIn("@VERSION@", html); self.assertIn("@SHA256@", html)          # los rellena packaging/crear_repo_apt.sh al publicar
+        self.assertLess(abs(html.count("<span data-es") - html.count("<span data-en")), 6)          # cada texto tiene su versión en los dos idiomas
+        self.assertIn("web/", open(os.path.join(raiz, "packaging", "crear_repo_apt.sh"), encoding="utf-8").read())
+
     def test_la_version_es_la_misma_en_todos_los_sitios_y_el_deb_trae_el_repositorio(self):
         import re
         raiz = os.path.join(os.path.dirname(__file__), ".."); leer = lambda *r: open(os.path.join(raiz, *r), encoding="utf-8").read()

@@ -59,6 +59,9 @@ jobs:
   repositorio-apt:
     name: Publicar el repositorio apt
     needs: [publicar]
+    concurrency:
+      group: sitio-gh-pages          # la misma cola que sitio.yml: nunca dos subidas a gh-pages a la vez
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     permissions:
       contents: write          # subir la rama gh-pages, que sirve GitHub Pages
