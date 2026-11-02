@@ -1,0 +1,42 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: all
+Codename: stable
+Components: main
+Date: Mon, 02 Nov 2026 19:16:03 +0000
+Label: OweeCapture
+Origin: OweeCapture
+Suite: stable
+MD5Sum:
+ 8b018dcfbe0a70ec6caff00c552438c8              144 Release
+ e20fbacdba64bc994395d904448cbc93             1698 main/binary-all/Packages
+ 2b59113d3c94619b2d122c0d86425f92              927 main/binary-all/Packages.gz
+SHA1:
+ b19d180caef32cba2704847e488e74f8b8f89a2d              144 Release
+ 6bcef76d31b485f454d39802dc6b142b4ee63ed5             1698 main/binary-all/Packages
+ 790586a4d071b8fdeee359f471561e209b19a854              927 main/binary-all/Packages.gz
+SHA256:
+ 62f10b46f3dfdf1559a73fb6810b88644aa0c5b124d19d8ca596d1c87549b8eb              144 Release
+ 7e059e3ab12a79643e4edd3086230db1fa88d4d319fc6a70485c1f26b85a2ee0             1698 main/binary-all/Packages
+ bdc6eab0c1a255e34b017c153261335538fd9b01b0ca4d9945b23897adf91f0d              927 main/binary-all/Packages.gz
+SHA512:
+ 31724b1687262fa4c1216f406e650ea0e060c3bfe6920c675ba35f3f859a98bef1221c702b6eea0a7e7a699c5ff83032d18ae2e26de5a8ba6a6814508ef2ee19              144 Release
+ 23cecb50ff4ca892c70be7f3dfd3b83215b7fb4c1f7058713b302e7188d843004d88cac17774cef971fddad1c9321e95594d0f69cc6be894a36cbb6d20ad1a69             1698 main/binary-all/Packages
+ 341bf82507cea16e0ab5c4e1f57510125569587e5d8f62d9c6be99ec34e0424ef768b3af656467c457a58391cfdc96476c26e61ab3656f21e1d784ce05cd66d5              927 main/binary-all/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEERp/qvAsC2z7Jsca3zK92FIcYqb8FAmro4XMACgkQzK92FIcY
+qb/siQ//cWRcckG/XfIQgsECGkzzd5h45W0Cb1ebN4E5hLOXjUEBz2LKLlD+phYT
+r7ayrmMkNcg77pTlZmesx/eyyjKU9VJxmVgXGQw4OJySSOEI83gqC/uFp/mzd30a
+QewytopZrwG8rsImfPksOc55hBpQvdF8U7x74irPKVnNFvCiyxvk+6yem8GfDZyj
+eIePU9q+QiXfkkTTHpYbzYh89UoRSN6ylPNnIkPTplXr7vWlE7GU/Y9AbaQjeQeL
+uDYkXyqf3xuYkiRPxY6S9Md91C6uU3QUHDCrJJMbYBZCx3vuAk7TpGrisUA05n2Z
+n22P7QeNlk8YMgJT7dFAgqP/+bTShUdlkh2VFaXHV9KVNxxWfJhpjTHSACNC5ewI
+XP18pbZYR3hu3Xb9SCPqpyahOK69sUCtsJ0BgaKEsJiD8keZ8tRvjz1Pg/YBgJB+
+O2N6L9GPWRGVZFcin/dTJYC9w5EwtJnGWDNwnJmci9PlLFZML4G7F9KvT7C0oYB2
+JkRzNmiuNhA1QKQqSnBwDuQ586ACk3DZV/ldV3Z0lFapwyLQcgAC9XnMIRon/v6O
+XX9tCCveOCdaR58l1hNFULhfPbhdUwzWG1gxJXY9kM8vlNXg5iuJu/jFfYWh/Wr/
+ys7jxIZWxG2eqfAHlzKQjBYoD+j9QV4CbBPwpwy0kAadpf9sihc=
+=4+t+
+-----END PGP SIGNATURE-----

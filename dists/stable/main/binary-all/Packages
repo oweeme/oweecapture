@@ -1,0 +1,19 @@
+Package: oweecapture
+Architecture: all
+Version: 0.2.0
+Priority: optional
+Section: video
+Maintainer: Hector Martinez <hector@oweeme.com>
+Installed-Size: 840
+Depends: python3 (>= 3.11), python3-venv, python3-gi, python3-dbus, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, ffmpeg, pipewire, xdg-desktop-portal, libgl1, libegl1, libxkbcommon0, libfontconfig1, libdbus-1-3, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
+Recommends: python3-pyside6.qtcore, python3-pyside6.qtgui, python3-pyside6.qtwidgets, xdg-desktop-portal-kde | xdg-desktop-portal-gnome | xdg-desktop-portal-wlr, libnotify-bin
+Filename: pool/main/oweecapture_0.2.0_all.deb
+Size: 234368
+MD5sum: 75bf5c900e699661d786ffa8d1d5f773
+SHA1: c559a6abc468db64710a46fe35915ad08d754316
+SHA256: ab46c9f6fd2d4d98a6e6ecb5fd503d7779e34d769e341ade63ef60a2d16a6985
+SHA512: f675b0bd847a0dce5f5cec5f2dc7a2ca9fac47e9e4d60a88ea39bfc2f8dc0103e7537874a05d0e4ee4c0d151d36bc195f9a34419bb6020b8516ea59586201e76
+Homepage: https://oweeme.com
+Description: screenshots, screen recording, live streaming and video tools
+ OweeCapture takes screenshots and records the screen (with system audio, microphone and webcam) on Wayland through the desktop portal. It streams live over RTMP (YouTube, TikTok, Twitch) with a local copy and automatic reconnection, and includes tools to publish videos: vertical 9:16, trimming, silence cutting and local automatic subtitles.
+
