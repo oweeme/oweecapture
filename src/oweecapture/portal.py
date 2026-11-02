@@ -216,8 +216,12 @@ class Grabador:
         caps = "audioconvert ! audioresample ! audio/x-raw,rate=48000,channels=2 ! opusenc bitrate=128000 ! queue ! mux."          # cada fuente en su propia pista: el volumen y el ruido se ajustan al guardar
         if self.sistema: audio += f'pipewiresrc stream-properties="props,stream.capture.sink=true" do-timestamp=true ! {caps} '
         if self.mic: audio += f"pipewiresrc do-timestamp=true ! {caps} "
+        escala = ""
+        if self.calidad in core.ALTO_EN_VIVO:                                        # «listo al parar»: se escala a 720p al grabar (nunca se amplía) y no queda nada por reducir después
+            ancho, alto = (self.rect[2], self.rect[3]) if self.rect else self.flujo
+            if ancho and alto: w, h = dir_.dimensiones(ancho, alto, core.ALTO_EN_VIVO[self.calidad]); escala = f"videoscale ! video/x-raw,width={w},height={h} ! " if (w, h) != (ancho & ~1, alto & ~1) else ""
         desc = (f"matroskamux name=mux ! filesink location={self.mkv} "
-                f"{self._fuente_video()} ! queue ! videoconvert ! {self.recorte}videorate ! video/x-raw,framerate={self.fps}/1 ! "
+                f"{self._fuente_video()} ! queue ! videoconvert ! {self.recorte}videorate ! video/x-raw,framerate={self.fps}/1 ! {escala}"
                 f"x264enc tune=zerolatency speed-preset={preset} pass=qual quantizer={crf} key-int-max={self.fps * 2} ! video/x-h264,profile=high ! h264parse ! queue ! mux. {audio}")
         try: self.pipe = Gst.parse_launch(desc)
         except GLib.Error as e: self._fallo(str(e)); return False

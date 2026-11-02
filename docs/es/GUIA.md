@@ -14,7 +14,8 @@ Al lado del botón *Grabar* hay: *Captura de pantalla*, *Modo presentación*, *H
 
 1. `Ctrl+Alt+S` (o el botón *Captura de pantalla*).
 2. Arrastra para elegir una zona, o pulsa `Enter` o `Espacio` para toda la pantalla. `Esc` cancela.
-3. Queda en `Imágenes/Screenshots` y copiada al portapapeles, lista para pegar.
+3. Se abre la imagen congelada para **anotarla** con las herramientas del modo presentación (flechas, marcos, texto…). Con *Ocultar datos* pixelas lo que no debe verse (claves, correos…). `Intro` o ✓ acepta; `Esc` cancela.
+4. Queda en `Imágenes/Screenshots` y copiada al portapapeles, lista para pegar.
 
 La primera vez, el escritorio te pide permiso.
 
@@ -22,7 +23,7 @@ La primera vez, el escritorio te pide permiso.
 
 1. En la pestaña **Grabar** elige:
    - **Zona al grabar:** *Libre* (arrastras una zona o pantalla completa) o *Vertical 9:16* (para TikTok, Shorts y Reels).
-   - **Calidad:** *WhatsApp / Telegram* (pequeño y nítido), *YouTube* (buena calidad) o *Máxima* (para editar después).
+   - **Calidad:** *WhatsApp / Telegram* (pequeño y nítido), *YouTube* (buena calidad), *Máxima* (para editar después) o *Listo al parar* (graba ya en 720p, así el archivo se puede subir al instante, sin esperar ninguna reducción).
    - **Fotogramas:** 24, 30 o 60 fps.
    - **Tamaño máximo:** sin límite, 16, 50 o 100 MB.
 2. Pulsa **Grabar** (o `Ctrl+Alt+R`) y elige la zona.
@@ -77,9 +78,9 @@ Mientras grabas o transmites, `Ctrl+Alt+G` guarda aparte los últimos 15, 30, 60
 
 ## Modo presentación: dibujar sobre la pantalla
 
-`Ctrl+Alt+D` (o el botón *Modo presentación*) pone una capa transparente sobre la pantalla y una barra de iconos con: lápiz, resaltador, flecha, marco, elipse y texto (escribes y pulsas `Intro`); 6 colores, 3 grosores, deshacer, borrar y **pasar clics** (usas el escritorio sin salir y lo dibujado sigue visible).
+`Ctrl+Alt+D` (o el botón *Modo presentación*) pone una capa transparente sobre la pantalla y una barra de iconos con: lápiz, resaltador, flecha, marco, elipse, texto (escribes y pulsas `Intro`) y **ocultar datos** (tapa la zona con un bloque opaco para que no se vea una clave mientras grabas); 6 colores, 3 grosores, deshacer, borrar y **pasar clics** (usas el escritorio sin salir y lo dibujado sigue visible).
 
-Teclas: `1`–`6` cambian de herramienta, `Ctrl+Z` deshace, `C` borra, `Espacio` alterna pasar clics, `Esc` sale.
+Teclas: `1`–`7` cambian de herramienta, `Ctrl+Z` deshace, `C` borra, `Espacio` alterna pasar clics, `Esc` sale.
 
 **Para que la barra no salga en tus vídeos:** en KDE Plasma (KWin 6.4 o posterior) la barra de iconos se excluye sola de las grabaciones y los directos: tú la ves, el vídeo no. **Lo que dibujas sí sale en el vídeo.** Lo mismo ocurre con los menús desplegables del icono de la bandeja mientras grabas. En otros escritorios no hay forma de ocultar una ventana de la grabación; la alternativa es grabar solo una zona y dejar la barra fuera de ella.
 

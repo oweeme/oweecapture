@@ -46,7 +46,9 @@ CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache
 # YouTube: se graba directo con buena compresión y sin reducir (recomprimir después pesaba más). Máxima: casi sin pérdidas, para editar y aplicar efectos (se recomienda 60 fotogramas).
 QUALITY = {"whatsapp": ("ultrafast", 20, {"height": 720, "crf": 23, "fps": 0, "abr": "96k", "preset": "veryfast"}),
            "youtube": ("veryfast", 18, None),
-           "maxima": ("veryfast", 12, None)}
+           "maxima": ("veryfast", 12, None),
+           "rapida": ("veryfast", 23, None)}
+ALTO_EN_VIVO = {"rapida": 720}      # perfiles que reducen MIENTRAS graban (el archivo queda listo al parar, sin reducción posterior): alto máximo en píxeles
 MIN_FREE = 1 << 30      # no se empieza a grabar con menos de 1 GB libre
 
 _SCOPE = None

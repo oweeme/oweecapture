@@ -4,10 +4,10 @@ from PySide6.QtCore import QObject, QPointF, QRect, QSize, QTimer, Signal
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGroupBox, QMenu, QScrollArea, QSystemTrayIcon, QTabWidget, QCheckBox, QComboBox, QFormLayout, QLabel, QHBoxLayout, QLineEdit, QPushButton, QSlider, QToolButton, QVBoxLayout, QWidget
-from . import atajos, autor, burbuja, captura, clips, core, directo, efectos_pantalla, entrada, inicio, kwin, marco, ventana_herramientas, portal, presentacion, selector, servicio
+from . import anotar, atajos, autor, burbuja, captura, clips, core, directo, efectos_pantalla, entrada, inicio, kwin, marco, ventana_herramientas, portal, presentacion, selector, servicio
 from .i18n import _
 
-CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)"))]
+CALIDADES = [("whatsapp", _("WhatsApp / Telegram (pequeño y nítido)")), ("youtube", _("YouTube (buena calidad)")), ("maxima", _("Máxima (edición y efectos)")), ("rapida", _("Listo al parar (720p, sin esperas)"))]
 FOTOGRAMAS = [24, 30, 60]
 ZOOMS = [(0, _("Sin zoom")), (1.5, "1,5×"), (2, "2×"), (2.5, "2,5×")]
 RUIDOS = [(0, _("Sin reducción")), (1, _("Suave (ventilador, zumbido)")), (2, _("Fuerte (también corta el ruido entre frases)"))]
@@ -129,12 +129,15 @@ class Ventana(QWidget):
 
     def captura(self): self.esconder(lambda: captura.tomar(self.captura_lista, self.captura_fallo))
     def captura_fallo(self, m): self.mostrar(); self.estado.setText(m)
-    def captura_lista(self, img): self.con_selector(img, lambda z: self.captura_guardar(img, z))
-    def captura_guardar(self, img, zona):
-        self.mostrar()
+    def captura_lista(self, img): self.con_selector(img, lambda z: self.captura_anotar(img, z))
+    def captura_anotar(self, img, zona):
+        """Tras elegir la zona se puede dibujar encima (modo presentación) antes de guardar: ✓ o Intro guarda y copia, Esc cancela."""
+        self.anotador = anotar.Anotador(img, zona, self.captura_guardar); self.anotador.showFullScreen()
+    def captura_guardar(self, final):
+        self.anotador = None; self.mostrar()
+        if final is None: self.estado.setText(_("Cancelado.")); return
         try:
-            r = zona if zona else QRect(0, 0, img.width(), img.height()); f = img.devicePixelRatio() or 1; r = QRect(int(r.x() * f), int(r.y() * f), int(r.width() * f), int(r.height() * f))
-            ruta = captura.guardar(img.copy(r)); self.estado.setText(_("Captura guardada y copiada: ") + ruta)
+            ruta = captura.guardar(final); self.estado.setText(_("Captura guardada y copiada: ") + ruta)
             self.avisar(_("Captura guardada"), ruta)
         except Exception as e: self.estado.setText(str(e))
 

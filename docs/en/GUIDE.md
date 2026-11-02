@@ -24,7 +24,7 @@ The first time, the desktop asks for permission.
 
 1. In the **Grabar** tab choose:
    - **Zona al grabar** (Area to record): *Libre* (free: drag a region or the full screen) or *Vertical 9:16* (for TikTok, Shorts and Reels).
-   - **Calidad** (Quality): *WhatsApp / Telegram* (small and sharp), *YouTube* (good quality) or *Máxima* (maximum, for editing later).
+   - **Calidad** (Quality): *WhatsApp / Telegram* (small and sharp), *YouTube* (good quality), *Máxima* (maximum, for editing later) or *Listo al parar* ("ready on stop": records at 720p directly, so the file can be uploaded right away with no reduction step).
    - **Fotogramas** (Frame rate): 24, 30 or 60 fps.
    - **Tamaño máximo** (Maximum size): no limit, 16, 50 or 100 MB.
 2. Press **Grabar** (or `Ctrl+Alt+R`) and choose the region.
@@ -79,9 +79,9 @@ While recording or streaming, `Ctrl+Alt+G` saves the last 15, 30, 60 or 120 seco
 
 ## Presentation mode: draw on the screen
 
-`Ctrl+Alt+D` (or the *Modo presentación* button) puts a transparent layer over the screen and a toolbar with: pen, highlighter, arrow, frame, ellipse and text (type and press `Enter`); 6 colors, 3 thicknesses, undo, clear and **click-through** (you use the desktop without leaving, and what you drew stays visible).
+`Ctrl+Alt+D` (or the *Modo presentación* button) puts a transparent layer over the screen and a toolbar with: pen, highlighter, arrow, frame, ellipse, text (type and press `Enter`) and **hide data** (covers the area with an opaque block so a password does not show while you record); 6 colors, 3 thicknesses, undo, clear and **click-through** (you use the desktop without leaving, and what you drew stays visible).
 
-Keys: `1`–`6` switch tool, `Ctrl+Z` undo, `C` clear, `Space` toggles click-through, `Esc` exits.
+Keys: `1`–`7` switch tool, `Ctrl+Z` undo, `C` clear, `Space` toggles click-through, `Esc` exits.
 
 **So the toolbar does not appear in your videos:** on KDE Plasma (KWin 6.4 or later) the toolbar is automatically excluded from recordings and streams: you see it, the video does not. **What you draw does appear in the video.** The same applies to the pop-up menus of the tray icon while you record. On other desktops there is no way to hide a window from the recording; the alternative is to record only a region and keep the toolbar outside it.
 
