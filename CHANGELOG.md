@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 0.2.0
+- **Annotate screenshots before saving:** after choosing the area you can draw on it with the presentation-mode tools (pen, highlighter, arrow, frame, ellipse, text). `Enter` or ✓ saves and copies; `Esc` cancels.
+- **Hide data** (key `7`): truly pixelates what you mark in a screenshot; in live presentation mode it covers the area with an opaque block so it does not appear in the recording.
+- **Quality "Listo al parar" (ready on stop, 720p):** records at 720p directly, so the file can be uploaded right away without waiting for the later reduction.
+- **Updates with `apt`:** the `.deb` sets up the (signed) OweeCapture repository; new versions arrive with `sudo apt update && sudo apt upgrade`.
+
 ## 0.1.9
 - The pop-up menus of the tray icon no longer appear in the recording (KDE).
 

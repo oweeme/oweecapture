@@ -5,7 +5,7 @@ os.environ.setdefault("OWEECAPTURE_SIN_ATAJOS", "1")          # crear la ventana
 from oweecapture import audio, clips, core, directo, efectos, entrada, herramientas, i18n, inicio, ruido_vivo, subtitulos
 
 class Calidades(unittest.TestCase):
-    def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima"})
+    def test_perfiles(self): self.assertEqual(set(core.QUALITY), {"whatsapp", "youtube", "maxima", "rapida"})
     def test_youtube_y_maxima_no_se_recomprimen(self): self.assertIsNone(core.QUALITY["youtube"][2]); self.assertIsNone(core.QUALITY["maxima"][2])
     def test_whatsapp_reduce_a_720p_con_calidad_que_no_pixela(self):
         r = core.QUALITY["whatsapp"][2]; self.assertEqual(r["height"], 720); self.assertLessEqual(r["crf"], 24)      # crf 27 (versión anterior) dejaba el texto borroso
@@ -248,6 +248,81 @@ class Presentacion(unittest.TestCase):
         from oweecapture import presentacion as P
         a, b = QPointF(0, 0), QPointF(100, 0); c3, c10 = P.cabeza_de_flecha(a, b, 3), P.cabeza_de_flecha(a, b, 10)
         self.assertEqual(c3[0], b); self.assertGreater(abs(c10[1].y()), abs(c3[1].y())); self.assertLess(c3[1].x(), 100)
+
+class ListoAlParar(unittest.TestCase):
+    def test_el_perfil_rapida_existe_no_reduce_despues_y_escala_a_720(self):
+        from oweecapture import core, directo
+        self.assertIn("rapida", core.QUALITY); self.assertIsNone(core.QUALITY["rapida"][2]); self.assertEqual(core.ALTO_EN_VIVO["rapida"], 720)          # sin reducción posterior: queda listo al parar
+        self.assertEqual(directo.dimensiones(1920, 1080, 720), (1280, 720)); self.assertEqual(directo.dimensiones(1280, 720, 720), (1280, 720)); self.assertEqual(directo.dimensiones(1366, 768, 720), (1280, 720))          # nunca se amplía
+        self.assertEqual(directo.dimensiones(800, 600, 720), (800, 600))
+    def test_la_tuberia_con_escalado_graba_un_mkv_de_720p(self):
+        import shutil, subprocess, tempfile
+        if not shutil.which("gst-launch-1.0") or not shutil.which("ffprobe"): self.skipTest("sin GStreamer o ffprobe")
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "v.mkv")
+            r = subprocess.run(["gst-launch-1.0", "-q", "videotestsrc", "num-buffers=48", "!", "video/x-raw,width=1920,height=1080,framerate=24/1", "!", "videoconvert", "!", "videorate", "!", "video/x-raw,framerate=24/1", "!", "videoscale", "!", "video/x-raw,width=1280,height=720", "!",
+                                "x264enc", "tune=zerolatency", "speed-preset=veryfast", "pass=qual", "quantizer=23", "!", "video/x-h264,profile=high", "!", "h264parse", "!", "matroskamux", "!", "filesink", f"location={ruta}"], capture_output=True, text=True, timeout=60)
+            if r.returncode: self.skipTest("este GStreamer no tiene x264enc: " + r.stderr[-120:])
+            t = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", ruta], capture_output=True, text=True).stdout.strip(); self.assertEqual(t, "1280,720")
+
+class Version(unittest.TestCase):
+    def test_la_version_es_la_misma_en_todos_los_sitios_y_el_deb_trae_el_repositorio(self):
+        import re
+        raiz = os.path.join(os.path.dirname(__file__), ".."); leer = lambda *r: open(os.path.join(raiz, *r), encoding="utf-8").read()
+        v = re.search(r'__version__ = "([^"]+)"', leer("src", "oweecapture", "__init__.py")).group(1)
+        self.assertEqual(re.search(r'VERSION = "([^"]+)"', leer("src", "oweecapture", "autor.py")).group(1), v); self.assertEqual(re.search(r'^version = "([^"]+)"', leer("pyproject.toml"), re.M).group(1), v)
+        self.assertIn(f"## {v}", leer("CHANGELOG.es.md")); self.assertIn(f"## {v}", leer("CHANGELOG.md"))          # cada versión tiene su entrada en los dos registros de cambios
+        self.assertTrue(os.path.getsize(os.path.join(raiz, "packaging", "oweecapture-archive-keyring.gpg")) > 500)          # la clave pública que verifica las actualizaciones
+        deb = leer("packaging", "crear_deb.sh"); self.assertIn("https://oweeme.github.io/oweecapture stable main", deb); self.assertIn("conffiles", deb)
+
+class AnotarCaptura(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+    def _imagen(self, w=400, h=300):
+        from PySide6.QtGui import QColor, QImage
+        i = QImage(w, h, QImage.Format_ARGB32); i.fill(QColor("#ffffff")); return i
+    def test_componer_recorta_la_zona_y_pinta_los_trazos_en_su_sitio(self):
+        from PySide6.QtCore import QPointF, QRect
+        from oweecapture import anotar
+        img = self._imagen(); r = anotar.componer(img, QRect(100, 50, 200, 100), [{"t": "marco", "c": "#E63946", "w": 6, "a": QPointF(110, 60), "b": QPointF(290, 140)}])
+        self.assertEqual((r.width(), r.height()), (200, 100)); self.assertEqual(r.pixelColor(100, 50).name(), "#ffffff"); self.assertEqual(r.pixelColor(10, 10).name(), "#e63946")          # el marco queda a 10 px de la esquina de la zona
+        self.assertEqual(anotar.componer(img, None, []).size(), img.size())
+    def test_componer_respeta_la_escala_de_pantalla(self):
+        from PySide6.QtCore import QPointF, QRect
+        from oweecapture import anotar
+        img = self._imagen(800, 600); img.setDevicePixelRatio(2.0)          # pantalla lógica de 400x300 con imagen de 800x600
+        r = anotar.componer(img, QRect(100, 50, 200, 100), [{"t": "marco", "c": "#E63946", "w": 6, "a": QPointF(110, 60), "b": QPointF(290, 140)}])
+        self.assertEqual((r.width(), r.height()), (400, 200)); self.assertEqual(r.pixelColor(20, 20).name(), "#e63946")
+    def test_aceptar_entrega_la_imagen_y_cancelar_entrega_none_una_sola_vez(self):
+        from PySide6.QtCore import QRect
+        from oweecapture import anotar
+        for aceptar in (True, False):
+            res = []; a = anotar.Anotador(self._imagen(), QRect(50, 50, 200, 100), res.append); a.resize(400, 300); a.show(); self._trazo(a, (60, 60), (200, 120))
+            a.aceptar() if aceptar else a.close(); a.close(); self.assertEqual(len(res), 1); self.assertEqual(res[0] is not None, aceptar)
+            if aceptar: self.assertEqual((res[0].width(), res[0].height()), (200, 100)); self.assertEqual(len(a.trazos), 1)
+    def test_ocultar_datos_pixela_la_captura_y_en_vivo_tapa_con_un_bloque(self):
+        from PySide6.QtCore import QPointF, QRect
+        from PySide6.QtGui import QColor, QImage, QPainter
+        from oweecapture import anotar, presentacion as P
+        img = self._imagen(); [img.setPixelColor(150, y, QColor("#000000")) for y in range(60, 140)]          # una raya negra de 1 px dentro de la zona a ocultar
+        r = anotar.componer(img, None, [{"t": "ocultar", "c": "#E63946", "w": 6, "a": QPointF(100, 50), "b": QPointF(250, 150)}])
+        self.assertNotEqual(r.pixelColor(150, 100).name(), "#000000"); self.assertNotEqual(r.pixelColor(150, 100).name(), "#ffffff"); self.assertEqual(r.pixelColor(20, 20).name(), "#ffffff"); self.assertEqual(r.pixelColor(150, 200).name(), "#ffffff")
+        vivo = QImage(200, 100, QImage.Format_ARGB32); vivo.fill(QColor("#ffffff")); p = QPainter(vivo); P.pintar_elemento(p, {"t": "ocultar", "c": "#fff", "w": 6, "a": QPointF(20, 20), "b": QPointF(120, 80)}); p.end()
+        self.assertLess(vivo.pixelColor(60, 50).lightness(), 80); self.assertEqual(vivo.pixelColor(10, 10).name(), "#ffffff")
+        self.assertEqual(P.HERRAMIENTAS[-1][0], "ocultar")
+    def test_la_barra_queda_debajo_de_la_zona_con_el_boton_aceptar(self):
+        from PySide6.QtCore import QRect
+        from oweecapture import anotar
+        a = anotar.Anotador(self._imagen(1600, 900), QRect(300, 100, 600, 300), lambda r: None); a.resize(1600, 900); a.show()
+        self.assertIn("aceptar", a.barra.bots); self.assertTrue(a.barra.bots["clics"].isHidden()); self.assertGreater(a.barra.y(), 400); a.close()
+    def _trazo(self, d, a, b):
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        def ev(t, p): tipos = {"p": QEvent.MouseButtonPress, "m": QEvent.MouseMove, "r": QEvent.MouseButtonRelease}; return QMouseEvent(tipos[t], QPointF(*p), QPointF(*p), Qt.LeftButton, Qt.LeftButton if t != "r" else Qt.NoButton, Qt.NoModifier)
+        d.herramienta_es("marco"); d.mousePressEvent(ev("p", a)); d.mouseMoveEvent(ev("m", b)); d.mouseReleaseEvent(ev("r", b))
 
 class VentanaPrincipal(unittest.TestCase):
     @classmethod

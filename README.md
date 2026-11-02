@@ -52,4 +52,4 @@ Other project documents (Spanish only): [PLAN.md](PLAN.md) (roadmap) and [docs/D
 
 ## Status
 
-Version 0.1.x. **Really tested on KDE Plasma 6 (Wayland)**, where everything works. On **Deepin (X11)** screenshots and recording work; **GNOME** is untested. **Windows and Android are not supported** (see [docs/en/DESKTOPS.md](docs/en/DESKTOPS.md)).
+Version 0.2.x. **Really tested on KDE Plasma 6 (Wayland)**, where everything works. On **Deepin (X11)** screenshots and recording work; **GNOME** is untested. **Windows and Android are not supported** (see [docs/en/DESKTOPS.md](docs/en/DESKTOPS.md)).

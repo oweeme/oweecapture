@@ -43,7 +43,8 @@ oweecapture --comprobar    # arranca Qt sin pantalla y dice qué falta (ffmpeg, 
 
 ## Actualizar
 
-- **.deb:** instala el nuevo encima: `sudo apt install ./oweecapture_<nueva>_all.deb`. Esto **no borra** el programa (arreglado en la 0.1.5).
+- **Automático con `apt` (desde la 0.2.0):** el `.deb` deja configurado el repositorio de OweeCapture, firmado con una clave propia. Desde entonces las versiones nuevas llegan con `sudo apt update && sudo apt upgrade`, igual que el resto del sistema. Para dejar de recibirlas, borra `/etc/apt/sources.list.d/oweecapture.list`. Si instalaste una versión anterior a la 0.2.0, instala una vez el `.deb` nuevo y a partir de ahí se actualiza solo así. Instrucciones para añadir el repositorio sin el `.deb`: https://oweeme.github.io/oweecapture/
+- **.deb a mano:** instala el nuevo encima: `sudo apt install ./oweecapture_<nueva>_all.deb`. Esto **no borra** el programa (arreglado en la 0.1.5).
 - **install.sh:** descarga la versión nueva y vuelve a ejecutar `./install.sh`.
 - **Después, cierra y vuelve a abrir el programa.** La copia que ya estaba abierta sigue con el código viejo en memoria: «Acerca de» mostrará la versión antigua hasta que la reinicies. Con el icono de la bandeja → *Salir*, o `oweecapture --quit`, y abre de nuevo.
 - Si estás en KDE y la versión nueva trae un atajo nuevo, la tecla solo queda asignada tras abrir el programa **dos veces**.

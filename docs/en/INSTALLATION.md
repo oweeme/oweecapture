@@ -43,7 +43,8 @@ oweecapture --comprobar    # starts Qt without a screen and says what is missing
 
 ## Update
 
-- **.deb:** install the new one over it: `sudo apt install ./oweecapture_<new>_all.deb`. This **does not delete** the program (fixed in 0.1.5).
+- **Automatic with `apt` (since 0.2.0):** the `.deb` sets up the OweeCapture repository, signed with its own key. From then on new versions arrive with `sudo apt update && sudo apt upgrade`, like the rest of the system. To stop receiving them, delete `/etc/apt/sources.list.d/oweecapture.list`. If you have a version older than 0.2.0, install the new `.deb` once and from then on it updates this way. How to add the repository without the `.deb`: https://oweeme.github.io/oweecapture/
+- **.deb by hand:** install the new one over it: `sudo apt install ./oweecapture_<new>_all.deb`. This **does not delete** the program (fixed in 0.1.5).
 - **install.sh:** download the new version and run `./install.sh` again.
 - **Afterwards, close and reopen the program.** The copy that was already open keeps the old code in memory: "Acerca de" (About) will show the old version until you restart it. Use the tray icon → *Salir* (Quit), or `oweecapture --quit`, and open it again.
 - On KDE, if the new version brings a new shortcut, the key is only assigned after opening the program **twice**.

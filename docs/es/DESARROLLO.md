@@ -63,11 +63,11 @@ La versión sale de `src/oweecapture/__init__.py`. El script rechaza una versió
 
 ## Publicar una versión
 
-1. Sube el número en **dos** sitios: `src/oweecapture/__init__.py` (`__version__`) y `src/oweecapture/autor.py` (`VERSION`).
+1. Sube el número en **tres** sitios: `src/oweecapture/__init__.py` (`__version__`), `src/oweecapture/autor.py` (`VERSION`) y `pyproject.toml`. Una prueba comprueba que coincidan y que el changelog tenga la entrada.
 2. Añade la entrada al [CHANGELOG.es.md](../../CHANGELOG.es.md).
 3. Pruebas en verde, `git commit`, `git push origin main`.
 4. Etiqueta y sube: `git tag -a vX.Y.Z -m "OweeCapture X.Y.Z" && git push origin vX.Y.Z`.
-5. El flujo **Lanzamiento** (`.github/workflows/lanzamiento.yml`) pasa las pruebas, construye el `.deb` y el código fuente, prueba la instalación en varias distribuciones y publica la release con `SHA256SUMS`.
+5. El flujo **Lanzamiento** (`.github/workflows/lanzamiento.yml`) pasa las pruebas, construye el `.deb` y el código fuente, prueba la instalación en varias distribuciones y publica la release con `SHA256SUMS` y, en el trabajo `repositorio-apt`, el repositorio apt firmado en la rama `gh-pages` (GitHub Pages: https://oweeme.github.io/oweecapture/). La firma usa el secreto `APT_GPG_PRIVATE_KEY`; la clave pública está en `packaging/oweecapture-archive-keyring.gpg` y la lleva el `.deb`. **Si se perdiera la clave privada, los usuarios no podrían verificar las versiones nuevas** hasta reinstalar con una clave nueva: guarda una copia.
 
 ## Integración continua (`.github/workflows/`)
 

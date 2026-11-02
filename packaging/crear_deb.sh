@@ -28,6 +28,13 @@ install -m 644 data/oweecapture.desktop "$B/usr/share/applications/oweecapture.d
 install -m 644 data/icons/oweecapture.svg "$B/usr/share/icons/hicolor/scalable/apps/oweecapture.svg"
 for n in 16 24 32 48 64 128 256 512; do mkdir -p "$B/usr/share/icons/hicolor/${n}x${n}/apps"; install -m 644 "data/icons/oweecapture-$n.png" "$B/usr/share/icons/hicolor/${n}x${n}/apps/oweecapture.png"; done
 install -m 644 locales/*.json "$B/usr/share/oweecapture/locales/"
+# repositorio apt de OweeCapture: con la clave y esta lista, las versiones nuevas llegan con `apt upgrade`. La lista es un archivo de configuración (conffile): se puede editar o borrar y dpkg lo respeta
+mkdir -p "$B/usr/share/keyrings" "$B/etc/apt/sources.list.d"; install -m 644 packaging/oweecapture-archive-keyring.gpg "$B/usr/share/keyrings/oweecapture-archive-keyring.gpg"
+cat > "$B/etc/apt/sources.list.d/oweecapture.list" <<'EOF'
+# Repositorio de OweeCapture: las versiones nuevas llegan con «sudo apt update && sudo apt upgrade». Para dejar de recibirlas, borra este archivo.
+deb [signed-by=/usr/share/keyrings/oweecapture-archive-keyring.gpg] https://oweeme.github.io/oweecapture stable main
+EOF
+chmod 644 "$B/etc/apt/sources.list.d/oweecapture.list"; echo /etc/apt/sources.list.d/oweecapture.list > "$B/DEBIAN/conffiles"
 install -m 644 LICENSE "$B/usr/share/doc/oweecapture/copyright"; install -m 644 README.md "$B/usr/share/doc/oweecapture/README.md"
 find "$B" -type d -exec chmod 755 {} +
 

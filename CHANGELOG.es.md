@@ -2,6 +2,12 @@
 
 # Cambios por versión
 
+## 0.2.0
+- **Anotar capturas antes de guardar:** tras elegir la zona se dibuja encima con las herramientas del modo presentación (lápiz, resaltador, flecha, marco, elipse, texto). `Intro` o ✓ guarda y copia; `Esc` cancela.
+- **Ocultar datos** (tecla `7`): pixela de verdad lo marcado en una captura; en el modo presentación en vivo lo tapa con un bloque opaco para que no salga en la grabación.
+- **Calidad «Listo al parar (720p, sin esperas)»:** graba ya en 720p, así el archivo se puede subir al instante sin esperar la reducción posterior.
+- **Actualizaciones con `apt`:** el `.deb` configura el repositorio de OweeCapture (firmado); las versiones nuevas llegan con `sudo apt update && sudo apt upgrade`.
+
 ## 0.1.9
 - Los menús desplegables del icono de la bandeja ya no salen en la grabación (KDE).
 

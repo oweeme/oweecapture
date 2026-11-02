@@ -63,11 +63,11 @@ The version comes from `src/oweecapture/__init__.py`. The script rejects an inva
 
 ## Release a version
 
-1. Bump the number in **two** places: `src/oweecapture/__init__.py` (`__version__`) and `src/oweecapture/autor.py` (`VERSION`).
+1. Bump the number in **three** places: `src/oweecapture/__init__.py` (`__version__`) and `src/oweecapture/autor.py` (`VERSION`) and `pyproject.toml`. A test checks they match and that the changelog has the entry.
 2. Add the entry to [CHANGELOG.md](../../CHANGELOG.md) and [CHANGELOG.es.md](../../CHANGELOG.es.md).
 3. Tests green, `git commit`, `git push origin main`.
 4. Tag and push: `git tag -a vX.Y.Z -m "OweeCapture X.Y.Z" && git push origin vX.Y.Z`.
-5. The **Lanzamiento** (release) workflow (`.github/workflows/lanzamiento.yml`) runs the tests, builds the `.deb` and the source, tests the installation on several distributions and publishes the release with `SHA256SUMS`.
+5. The **Lanzamiento** (release) workflow (`.github/workflows/lanzamiento.yml`) runs the tests, builds the `.deb` and the source, tests the installation on several distributions and publishes the release with `SHA256SUMS` and, in the `repositorio-apt` job, the signed apt repository on the `gh-pages` branch (GitHub Pages: https://oweeme.github.io/oweecapture/). Signing uses the `APT_GPG_PRIVATE_KEY` secret; the public key is in `packaging/oweecapture-archive-keyring.gpg` and ships in the `.deb`. **If the private key were lost, users could not verify new versions** until they reinstall with a new key: keep a backup.
 
 ## Continuous integration (`.github/workflows/`)
 

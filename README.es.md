@@ -50,4 +50,4 @@ Otros documentos del proyecto: [PLAN.md](PLAN.md) (hoja de ruta) y [docs/DECISIO
 
 ## Estado
 
-Versión 0.1.x. **Probada de verdad en KDE Plasma 6 (Wayland)**, donde todo funciona. En **Deepin (X11)** funciona la captura de pantalla y la grabación; en **GNOME** aún no está probada. **Windows y Android no están soportados** (ver [docs/ESCRITORIOS.md](docs/es/ESCRITORIOS.md)).
+Versión 0.2.x. **Probada de verdad en KDE Plasma 6 (Wayland)**, donde todo funciona. En **Deepin (X11)** funciona la captura de pantalla y la grabación; en **GNOME** aún no está probada. **Windows y Android no están soportados** (ver [docs/ESCRITORIOS.md](docs/es/ESCRITORIOS.md)).
